@@ -2,7 +2,7 @@
 <html lang="fr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="TRIVO" />
@@ -51,6 +51,103 @@
       --text2: #4a6080;
       --text3: #8fa3c0;
       --nav-bg: #ffffffee;
+    }
+
+    /* ── THÈME COSMOS (débloqué : semaine parfaite) ─────────────────── */
+    [data-theme="cosmos"] {
+      --bg: #04020e;
+      --bg2: #080318;
+      --bg3: #0f0525;
+      --card: #0d0820cc;
+      --border: #4a2d8833;
+      --text: #e8e0ff;
+      --text2: #a090cc;
+      --text3: #604a99;
+      --nav-bg: #06031aee;
+      --accent: #7c3aed;
+      --blue: #7c3aed;
+      --blue-light: #a78bfa;
+    }
+    [data-theme="cosmos"] body {
+      background: radial-gradient(ellipse at 50% 30%, #1a0a4a 0%, #04020e 60%) fixed;
+    }
+    [data-theme="cosmos"] .card,
+    [data-theme="cosmos"] .task-card-premium,
+    [data-theme="cosmos"] .flame-card {
+      background: rgba(13,8,32,0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(124,58,237,0.2);
+    }
+    [data-theme="cosmos"] .bottom-nav {
+      background: rgba(4,2,14,0.92);
+      border-top: 1px solid rgba(124,58,237,0.2);
+      backdrop-filter: blur(16px);
+    }
+    /* Halo cosmique central */
+    [data-theme="cosmos"] #screen-dashboard::before {
+      content: '';
+      position: fixed; top: 20%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px; height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(124,58,237,0.15) 0%, rgba(59,130,246,0.08) 40%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      animation: cosmosHalo 6s ease-in-out infinite;
+    }
+    @keyframes cosmosHalo {
+      0%,100% { transform: translate(-50%,-50%) scale(1); opacity:0.7; }
+      50%      { transform: translate(-50%,-50%) scale(1.1); opacity:1; }
+    }
+    [data-theme="cosmos"] .section-title,
+    [data-theme="cosmos"] .dash-week-pct,
+    [data-theme="cosmos"] .flame-stat-value { color: #e8e0ff; }
+    [data-theme="cosmos"] .btn-primary { background: linear-gradient(135deg, #7c3aed, #4f46e5); }
+
+    /* ── THÈME SOLEIL LEVANT (débloqué : mois parfait) ──────────────── */
+    [data-theme="sunrise"] {
+      --bg: #080400;
+      --bg2: #120800;
+      --bg3: #1e0f00;
+      --card: #160a00cc;
+      --border: #8b4a0033;
+      --text: #fff8f0;
+      --text2: #d4a574;
+      --text3: #8b5a2a;
+      --nav-bg: #0a0500ee;
+      --accent: #f97316;
+      --blue: #ea580c;
+      --blue-light: #fb923c;
+    }
+    [data-theme="sunrise"] body {
+      background: linear-gradient(180deg, #0a0400 0%, #1a0800 30%, #2d1000 60%, #1a0800 100%) fixed;
+    }
+    [data-theme="sunrise"] .card,
+    [data-theme="sunrise"] .task-card-premium,
+    [data-theme="sunrise"] .flame-card {
+      background: rgba(22,10,0,0.80);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(249,115,22,0.2);
+      box-shadow: 0 0 0 0.5px rgba(249,115,22,0.1), inset 0 1px 0 rgba(251,191,36,0.08);
+    }
+    [data-theme="sunrise"] .bottom-nav {
+      background: rgba(8,4,0,0.92);
+      border-top: 1px solid rgba(249,115,22,0.2);
+      backdrop-filter: blur(16px);
+    }
+    /* Lueur dorée en bas */
+    [data-theme="sunrise"] body::after {
+      content: '';
+      position: fixed; bottom: 0; left: 0; right: 0; height: 200px;
+      background: linear-gradient(0deg, rgba(249,115,22,0.08) 0%, transparent 100%);
+      pointer-events: none; z-index: 0;
+    }
+    [data-theme="sunrise"] .section-title { color: #fff8f0; }
+    [data-theme="sunrise"] .dash-week-pct { color: #fbbf24; }
+    [data-theme="sunrise"] .flame-stat-value { color: #fff8f0; }
+    [data-theme="sunrise"] .btn-primary { background: linear-gradient(135deg, #ea580c, #dc2626); }
+    [data-theme="sunrise"] .dash-week-card {
+      background: linear-gradient(140deg, #7c2d12 0%, #1c0a00 100%);
+      box-shadow: 0 8px 28px rgba(234,88,12,0.25);
     }
 
     /* ─── RESET ─── */
@@ -879,8 +976,8 @@
 
     /* ─── TEAM CHAT (WhatsApp style) ─── */
     .team-chat-modal {
-      position: fixed; inset: 0; width: 100%; height: 100%; max-width: 100%;
-      max-height: 100%; border-radius: 0; display: flex; flex-direction: column;
+      position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: 100%;
+      max-height: 100dvh; border-radius: 0; display: flex; flex-direction: column;
       padding: 0; transform: none; background: var(--bg);
     }
     .team-chat-header {
@@ -888,6 +985,7 @@
       padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 12px;
       background: var(--nav-bg); backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border); flex-shrink: 0;
+      position: sticky; top: 0; z-index: 10;
     }
     .team-chat-avatar {
       width: 38px; height: 38px; border-radius: 50%; background: var(--blue);
@@ -1359,23 +1457,187 @@
     .dash-empty-txt { font-size: 14px; color: var(--text2); }
 
     /* ─── Streak premium ─── */
-    .dash-streak-row {
-      display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 18px; padding: 14px 16px;
+    /* ── CARTE FLAMME VIVANTE ─────────────────────────────────── */
+    .flame-card {
+      display: flex; gap: 0; align-items: center;
+      justify-content: space-between;
+      border-radius: 20px; padding: 18px 20px;
+      margin-bottom: 18px; position: relative; overflow: hidden;
+      transition: background 1.8s ease, box-shadow 1.8s ease;
+      background: linear-gradient(135deg, #1a2744 0%, #0d1829 100%);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
     }
-    .dash-streak-fire { font-size: 28px; flex-shrink: 0; color: #94a3b8; transition: color 0.3s, transform 0.3s; }
-    .dash-streak-fire.lvl1 { color: #fb923c; }
-    .dash-streak-fire.lvl2 { color: #f97316; transform: scale(1.1); }
-    .dash-streak-fire.lvl3 { color: #ef4444; transform: scale(1.2); animation: flamePulse 1.5s infinite ease-in-out; }
-    @keyframes flamePulse { 0%, 100% { transform: scale(1.2); } 50% { transform: scale(1.35); } }
-    .dash-streak-text { display: flex; align-items: baseline; gap: 4px; }
-    .dash-streak-num { font-size: 22px; font-weight: 900; }
-    .dash-streak-sub { font-size: 12px; color: var(--text3); }
-    .dash-streak-bar-wrap { flex: 1; background: var(--bg3); border-radius: 6px; height: 6px; overflow: hidden; }
-    .dash-streak-bar { height: 100%; background: var(--blue); border-radius: 6px; transition: width 0.6s ease; }
+    .flame-card.heat-low  { background: linear-gradient(135deg, #0f2318 0%, #071510 100%); box-shadow: 0 4px 20px rgba(34,197,94,0.12); }
+    .flame-card.heat-mid  { background: linear-gradient(135deg, #1f1608 0%, #120d04 100%); box-shadow: 0 4px 20px rgba(251,146,60,0.15); }
+    .flame-card.heat-high { background: linear-gradient(135deg, #200a0a 0%, #130404 100%); box-shadow: 0 4px 20px rgba(239,68,68,0.18); }
+    .flame-card.heat-max  { background: linear-gradient(135deg, #130820 0%, #0a0415 100%); box-shadow: 0 4px 28px rgba(168,85,247,0.22); }
 
-    /* ─── HABITUDES ─── */
+    .flame-wrap {
+      flex-shrink: 0; width: 72px; height: 90px;
+      display: flex; align-items: flex-end; justify-content: center;
+      position: relative;
+    }
+    .flame-svg { width: 100%; height: 100%; }
+
+    @keyframes flameWave {
+      0%,100% { transform: scaleX(1); }
+      25%      { transform: scaleX(1.04); }
+      75%      { transform: scaleX(0.97); }
+    }
+    @keyframes flamePulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.85; }
+    }
+    @keyframes flameTipDance {
+      0%,100% { opacity: 0.9; }
+      50%      { opacity: 0.6; }
+    }
+    @keyframes flameGlow {
+      0%,100% { opacity: 0.5; transform: translateX(-50%) scale(1); }
+      50%      { opacity: 0.9; transform: translateX(-50%) scale(1.15); }
+    }
+
+    .flame-outer { fill: #dc2626; animation: flameWave 2.2s ease-in-out infinite; }
+    .flame-mid   { fill: #f97316; animation: flamePulse 1.8s ease-in-out infinite 0.15s; }
+    .flame-core  { fill: #fbbf24; animation: flamePulse 1.5s ease-in-out infinite 0.3s; }
+    .flame-tip   { fill: #93c5fd; animation: flameTipDance 1.3s ease-in-out infinite; }
+    .flame-glow  {
+      position: absolute; bottom: 2px; left: 50%;
+      transform: translateX(-50%);
+      width: 52px; height: 18px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(249,115,22,0.6) 0%, transparent 70%);
+      animation: flameGlow 2s ease-in-out infinite;
+    }
+
+    .flame-wrap.sz1 { transform: scale(0.50); transform-origin: bottom center; }
+    .flame-wrap.sz2 { transform: scale(0.65); transform-origin: bottom center; }
+    .flame-wrap.sz3 { transform: scale(0.82); transform-origin: bottom center; }
+    .flame-wrap.sz4 { transform: scale(1.00); transform-origin: bottom center; }
+    .flame-wrap.sz5 { transform: scale(1.18); transform-origin: bottom center; }
+
+    .flame-wrap.clr-cold   .flame-outer{fill:#64748b} .flame-wrap.clr-cold .flame-mid{fill:#94a3b8} .flame-wrap.clr-cold .flame-core{fill:#cbd5e1} .flame-wrap.clr-cold .flame-tip{fill:#e2e8f0} .flame-wrap.clr-cold .flame-glow{background:radial-gradient(ellipse,rgba(100,116,139,.5) 0%,transparent 70%)}
+    .flame-wrap.clr-green  .flame-outer{fill:#16a34a} .flame-wrap.clr-green .flame-mid{fill:#22c55e} .flame-wrap.clr-green .flame-core{fill:#86efac} .flame-wrap.clr-green .flame-tip{fill:#bbf7d0} .flame-wrap.clr-green .flame-glow{background:radial-gradient(ellipse,rgba(34,197,94,.5) 0%,transparent 70%)}
+    .flame-wrap.clr-orange .flame-outer{fill:#dc2626} .flame-wrap.clr-orange .flame-mid{fill:#f97316} .flame-wrap.clr-orange .flame-core{fill:#fbbf24} .flame-wrap.clr-orange .flame-tip{fill:#93c5fd} .flame-wrap.clr-orange .flame-glow{background:radial-gradient(ellipse,rgba(249,115,22,.6) 0%,transparent 70%)}
+    .flame-wrap.clr-red    .flame-outer{fill:#991b1b} .flame-wrap.clr-red .flame-mid{fill:#ef4444} .flame-wrap.clr-red .flame-core{fill:#f97316} .flame-wrap.clr-red .flame-tip{fill:#60a5fa} .flame-wrap.clr-red .flame-glow{background:radial-gradient(ellipse,rgba(239,68,68,.6) 0%,transparent 70%)}
+    .flame-wrap.clr-purple .flame-outer{fill:#7e22ce} .flame-wrap.clr-purple .flame-mid{fill:#a855f7} .flame-wrap.clr-purple .flame-core{fill:#c084fc} .flame-wrap.clr-purple .flame-tip{fill:#67e8f9} .flame-wrap.clr-purple .flame-glow{background:radial-gradient(ellipse,rgba(168,85,247,.6) 0%,transparent 70%)}
+
+    .flame-stats { flex: 1; min-width: 0; padding-left: 16px; overflow: hidden; }
+    .flame-stat-slide { display: none; flex-direction: column; gap: 2px; animation: slideUp 0.4s ease; }
+    .flame-stat-slide.active { display: flex; }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .flame-stat-label { font-size: 10px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; }
+    .flame-stat-value { font-size: 26px; font-weight: 900; color: #fff; line-height: 1.1; }
+    .flame-stat-sub   { font-size: 11px; color: rgba(255,255,255,0.55); }
+    .flame-dots { display: flex; gap: 5px; margin-top: 10px; }
+    .flame-dot  { width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background 0.3s, transform 0.3s; }
+    .flame-dot.active { background: rgba(255,255,255,0.8); transform: scale(1.3); }
+    @keyframes particleUp { 0% { opacity:1; transform:translateY(0) scale(1); } 100% { opacity:0; transform:translateY(-45px) scale(0.2); } }
+    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+    @keyframes scaleIn { from { opacity:0; transform:scale(0.7); } to { opacity:1; transform:scale(1); } }
+    .dash-streak-row, .dash-streak-fire, .dash-streak-text, .dash-streak-bar-wrap { display: none !important; }
+
+    /* ── MODULE ÉTUDIANT ─────────────────────────────────────── */
+    .student-schedule { display:flex;gap:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;padding-bottom:8px; }
+    .student-day-col { min-width:calc(25vw - 10px);max-width:100px;flex-shrink:0;scroll-snap-align:start;border-right:1px solid var(--border); }
+    .student-day-col:last-child { border-right:none; }
+    .student-day-header { text-align:center;padding:8px 4px;position:sticky;top:0;background:var(--bg);z-index:2;font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid var(--border); }
+    .student-day-header.today { color:var(--accent); }
+    .student-timeline { position:relative;min-height:600px; }
+    .student-hour-line { position:absolute;left:0;right:0;height:1px;background:var(--border);opacity:0.4; }
+    .student-hour-label { position:absolute;left:2px;font-size:8px;color:var(--text3);transform:translateY(-50%); }
+    .student-block { position:absolute;left:3px;right:3px;border-radius:6px;padding:3px 5px;font-size:10px;font-weight:700;color:#fff;overflow:hidden;cursor:pointer;transition:opacity 0.2s; }
+    .student-block .block-title { font-size:10px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .student-block .block-time  { font-size:9px;opacity:0.85; }
+    .student-block.study { background:linear-gradient(135deg,#1d4ed8,#1e40af);border-left:3px solid #60a5fa; }
+    .student-block.imp-high   { border-left:3px solid #fbbf24; }
+    .student-block.imp-medium { border-left:3px solid #94a3b8;opacity:0.9; }
+    .student-block.imp-other  { opacity:0.65; }
+
+    /* Onboarding étudiant */
+    .student-onboarding { position:fixed;inset:0;z-index:800;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px; }
+    .onboarding-step { display:none;text-align:center;animation:fadeSlideUp 0.5s ease; width:100%;max-width:360px; }
+    .onboarding-step.active { display:block; }
+    @keyframes fadeSlideUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    .onboarding-emoji { font-size:52px;margin-bottom:16px; }
+    .onboarding-title { font-size:22px;font-weight:900;color:var(--text);margin-bottom:8px;line-height:1.2; }
+    .onboarding-sub   { font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:28px; }
+    .onboarding-options { display:flex;flex-direction:column;gap:12px;width:100%; }
+    .onboarding-option { padding:14px 18px;border-radius:16px;border:2px solid var(--border);background:var(--card);color:var(--text);font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s;text-align:left; }
+    .onboarding-option.selected { border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card)); }
+    .onboarding-input { width:100%;padding:14px 16px;border-radius:14px;background:var(--bg3);border:1px solid var(--border);color:var(--text);font-size:20px;font-weight:700;text-align:center;outline:none;box-sizing:border-box; }
+    .onboarding-input:focus { border-color:var(--accent); }
+    .onboarding-next { width:100%;padding:16px;border-radius:16px;background:var(--accent);color:#fff;font-size:16px;font-weight:800;border:none;cursor:pointer;margin-top:16px; }
+    .onboarding-progress { display:flex;gap:6px;margin-bottom:32px; }
+    .onboarding-dot { width:6px;height:6px;border-radius:50%;background:var(--border);transition:background 0.3s,transform 0.3s; }
+    .onboarding-dot.done { background:var(--accent);transform:scale(1.2); }
+
+    /* Paramètres étudiant — slide depuis droite, invisible hors viewport */
+    .student-settings-panel {
+      position:fixed;top:var(--topbar-h,60px);right:0;bottom:calc(var(--nav-h) + var(--safe-b));width:100%;max-width:480px;
+      background:var(--bg);z-index:700;overflow-y:auto;padding:24px 20px;
+      transform:translateX(110%); /* hors écran = invisible même sur grand écran */
+      transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      visibility:hidden;
+    }
+    .student-settings-panel.open { transform:translateX(0);visibility:visible; }
+
+    /* Chips importance cours */
+    .course-importance-grid { display:flex;gap:10px;flex-wrap:wrap;margin-top:8px; }
+    .course-imp-chip { padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid var(--border);color:var(--text2);cursor:pointer;transition:all 0.2s; }
+    .course-imp-chip.selected { color:#fff;border-color:transparent; }
+    .course-imp-chip[data-imp="high"].selected   { background:#dc2626; }
+    .course-imp-chip[data-imp="medium"].selected { background:#f97316; }
+    .course-imp-chip[data-imp="other"].selected  { background:#64748b; }
+
+    /* ── MODULE ACTIVITÉ ─────────────────────────────────────── */
+    .activity-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 16px; margin-bottom: 14px;
+    }
+    .activity-card-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+    }
+    .activity-field { margin-bottom: 12px; }
+    .activity-field-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .activity-field input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; font-size: 15px; font-weight: 700;
+      color: var(--text); outline: none; box-sizing: border-box;
+    }
+    .activity-field input:focus { border-color: var(--accent); }
+
+    /* Courbe SVG */
+    .activity-chart-wrap {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 18px; padding: 16px; margin-bottom: 14px;
+    }
+    .activity-chart-title { font-size: 12px; font-weight: 700; color: var(--text3); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .activity-chart-value { font-size: 24px; font-weight: 900; color: var(--text); margin-bottom: 12px; }
+    .activity-chart-delta { font-size: 12px; font-weight: 600; }
+    .activity-chart-delta.up   { color: #22c55e; }
+    .activity-chart-delta.down { color: #ef4444; }
+    .activity-chart-delta.flat { color: var(--text3); }
+    .activity-svg { width: 100%; height: 80px; overflow: visible; }
+    .activity-svg-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .activity-svg-area { opacity: 0.12; }
+    .activity-svg-dot { fill: var(--accent); }
+
+    /* Modal saisie */
+    .activity-save-btn {
+      width: 100%; padding: 14px; border-radius: 14px; margin-top: 8px;
+      background: var(--accent); color: #fff; font-size: 15px; font-weight: 700;
+      border: none; cursor: pointer;
+    }
+
+    /* Paramètres activité */
+    .activity-profile-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .activity-profile-chip {
+      padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600;
+      background: var(--bg3); border: 2px solid var(--border); color: var(--text2);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .activity-profile-chip.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
     .habit-card {
       display: flex; align-items: center; gap: 12px; padding: 12px 14px;
       background: var(--card); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 8px;
@@ -1402,18 +1664,30 @@
 
     /* ─── Carte progression semaine ─── */
     .dash-week-card {
-      background: linear-gradient(140deg, var(--blue) 0%, var(--blue-dark, #1e3a8a) 100%);
-      border-radius: 22px; padding: 18px; margin-bottom: 16px; color: #fff;
-      box-shadow: 0 8px 24px rgba(37,99,235,0.25);
+      background: linear-gradient(140deg, #1d4ed8 0%, #1e1b4b 100%);
+      border-radius: 22px; padding: 20px; margin-bottom: 16px; color: #fff;
+      box-shadow: 0 8px 28px rgba(29,78,216,0.3);
+      position: relative; overflow: hidden;
     }
-    .dash-week-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-    .dash-week-label { font-size: 12px; font-weight: 600; opacity: 0.75; margin-bottom: 4px; }
-    .dash-week-pct { font-size: 28px; font-weight: 900; }
-    .dash-week-card .week-bars { justify-content: space-between; height: 50px; }
-    .dash-week-card .week-bar { background: rgba(255,255,255,0.2); }
-    .dash-week-card .week-bar-fill { background: #fff; }
-    .dash-week-card .week-bar.today { background: rgba(255,255,255,0.3); }
-    .dash-week-card .week-day { color: rgba(255,255,255,0.7); }
+    .dash-week-card::before {
+      content: ''; position: absolute; top: -30px; right: -30px;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,0.05); pointer-events: none;
+    }
+    .dash-week-card::after {
+      content: ''; position: absolute; bottom: -20px; left: -20px;
+      width: 80px; height: 80px; border-radius: 50%;
+      background: rgba(255,255,255,0.04); pointer-events: none;
+    }
+    .dash-week-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .dash-week-label { font-size: 11px; font-weight: 700; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 2px; }
+    .dash-week-pct { font-size: 36px; font-weight: 900; line-height: 1; }
+    .dash-week-motivation { font-size: 12px; opacity: 0.7; margin-bottom: 14px; font-style: italic; }
+    .dash-week-card .week-bars { justify-content: space-between; height: 56px; margin-top: 12px; }
+    .dash-week-card .week-bar { background: rgba(255,255,255,0.15); border-radius: 4px 4px 0 0; }
+    .dash-week-card .week-bar-fill { background: rgba(255,255,255,0.9); border-radius: 4px 4px 0 0; }
+    .dash-week-card .week-bar.today .week-bar-fill { background: #fbbf24; }
+    .dash-week-card .week-day { color: rgba(255,255,255,0.6); font-size: 10px; }
 
     /* ─── Focus card (pendant session pomodoro) ─── */
     .dash-focus-card {
@@ -1533,7 +1807,10 @@
   </div>
 
   <div class="auth-form" id="register-form" style="display:none">
-    <input type="text" id="reg-pseudo" placeholder="Pseudo" maxlength="30" />
+    <input type="text" id="reg-pseudo" placeholder="Pseudo" maxlength="30" onfocus="document.getElementById('hint-pseudo').style.display='block'" onblur="document.getElementById('hint-pseudo').style.display='none'" />
+    <div id="hint-pseudo" style="display:none;font-size:11px;color:var(--text3);margin-top:-6px;margin-bottom:6px;padding-left:2px;">Votre pseudo est votre nom visible par tous les autres utilisateurs.</div>
+    <input type="text" id="reg-username" placeholder="Nom d'utilisateur" maxlength="30" autocomplete="username" oninput="this.value=this.value.replace(/\s/g,'')" onfocus="document.getElementById('hint-username').style.display='block'" onblur="document.getElementById('hint-username').style.display='none'" />
+    <div id="hint-username" style="display:none;font-size:11px;color:var(--text3);margin-top:-6px;margin-bottom:6px;padding-left:2px;">Ce nom doit être unique.</div>
     <input type="email" id="reg-email" placeholder="Email" autocomplete="email" />
     <div class="auth-pw-wrap">
       <input type="password" id="reg-password" placeholder="Mot de passe (6+ caractères)" autocomplete="new-password" />
@@ -1655,6 +1932,9 @@
       <div id="my-day-list"></div>
     </div>
 
+    <!-- MESSAGE DU COACH -->
+    <div id="coach-message-wrap" style="display:none;"></div>
+
     <!-- TÂCHES À VENIR (nouvelles cards premium) -->
     <div class="dash-section-label">
       <span>À venir</span>
@@ -1662,6 +1942,57 @@
     </div>
     <div id="upcoming-wrap">
       <div id="upcoming-tasks-list"></div>
+    </div>
+
+    <!-- CARTE FLAMME VIVANTE -->
+    <div class="flame-card" id="flame-card">
+      <div class="flame-wrap sz2 clr-orange" id="flame-wrap">
+        <div class="flame-glow"></div>
+        <svg class="flame-svg" viewBox="0 0 80 100" xmlns="http://www.w3.org/2000/svg">
+          <!-- Flamme principale -->
+          <path class="flame-outer" fill="#dc2626" d="M40 95 C18 78 4 58 10 36 C14 22 22 14 28 6 C30 16 26 24 30 32 C34 20 38 8 40 0 C42 8 46 20 50 32 C54 24 50 16 52 6 C58 14 66 22 70 36 C76 58 62 78 40 95Z"/>
+          <!-- Flamme intérieure -->
+          <path class="flame-mid" fill="#f97316" d="M40 85 C26 70 18 54 22 38 C25 28 31 22 34 14 C36 22 33 30 36 38 C38 28 40 16 40 10 C40 16 42 28 44 38 C47 30 44 22 46 14 C49 22 55 28 58 38 C62 54 54 70 40 85Z"/>
+          <!-- Coeur jaune -->
+          <path class="flame-core" fill="#fbbf24" d="M40 72 C34 62 30 52 33 42 C35 36 38 32 40 26 C42 32 45 36 47 42 C50 52 46 62 40 72Z"/>
+          <!-- Pointe bleue -->
+          <path class="flame-tip" fill="#93c5fd" d="M40 40 C38 32 37 26 40 18 C43 26 42 32 40 40Z"/>
+        </svg>
+      </div>
+      <div class="flame-stats" id="flame-stats">
+        <div class="flame-stat-slide active" data-slide="0">
+          <div class="flame-stat-label">Série active</div>
+          <div class="flame-stat-value" id="flame-streak-val">0</div>
+          <div class="flame-stat-sub" id="flame-streak-sub">jour consécutif</div>
+        </div>
+        <div class="flame-stat-slide" data-slide="1">
+          <div class="flame-stat-label">Aujourd'hui</div>
+          <div class="flame-stat-value" id="flame-today-val">0</div>
+          <div class="flame-stat-sub" id="flame-today-sub">tâche complétée</div>
+        </div>
+        <div class="flame-stat-slide" data-slide="2">
+          <div class="flame-stat-label">Cette semaine</div>
+          <div class="flame-stat-value" id="flame-week-val">0</div>
+          <div class="flame-stat-sub" id="flame-week-sub">tâche réussie</div>
+        </div>
+        <div class="flame-stat-slide" data-slide="3">
+          <div class="flame-stat-label">Progression</div>
+          <div class="flame-stat-value" id="flame-pct-val">0%</div>
+          <div class="flame-stat-sub" id="flame-pct-sub">des tâches du jour</div>
+        </div>
+        <div class="flame-stat-slide" data-slide="4">
+          <div class="flame-stat-label">Niveau flamme</div>
+          <div class="flame-stat-value" id="flame-lvl-val">35%</div>
+          <div class="flame-stat-sub" id="flame-lvl-sub">Continue comme ça</div>
+        </div>
+        <div class="flame-dots" id="flame-dots">
+          <div class="flame-dot active"></div>
+          <div class="flame-dot"></div>
+          <div class="flame-dot"></div>
+          <div class="flame-dot"></div>
+          <div class="flame-dot"></div>
+        </div>
+      </div>
     </div>
 
     <!-- STREAK PREMIUM -->
@@ -1682,22 +2013,6 @@
       <div id="habits-list"></div>
     </div>
 
-    <!-- STATS COMPACTES PREMIUM -->
-    <div class="dash-stats-row">
-      <div class="dash-stat-pill blue">
-        <span class="dash-stat-num" id="stat-remaining">0</span>
-        <span class="dash-stat-lbl">Restantes</span>
-      </div>
-      <div class="dash-stat-pill green">
-        <span class="dash-stat-num" id="stat-done">0</span>
-        <span class="dash-stat-lbl">Réussies</span>
-      </div>
-      <div class="dash-stat-pill red">
-        <span class="dash-stat-num" id="stat-missed">0</span>
-        <span class="dash-stat-lbl">Manquées</span>
-      </div>
-    </div>
-
     <!-- PROGRESSION HEBDO PREMIUM -->
     <div class="dash-week-card">
       <div class="dash-week-header">
@@ -1705,17 +2020,21 @@
           <div class="dash-week-label">Cette semaine</div>
           <div class="dash-week-pct" id="ring-pct">0%</div>
         </div>
-        <svg width="56" height="56" viewBox="0 0 56 56">
-          <circle stroke="rgba(255,255,255,0.15)" stroke-width="5" fill="none" cx="28" cy="28" r="22"/>
-          <circle id="ring-fill" stroke="#fff" stroke-width="5" fill="none" cx="28" cy="28" r="22"
-            stroke-dasharray="138" stroke-dashoffset="138"
-            stroke-linecap="round" transform="rotate(-90 28 28)"/>
+        <svg width="60" height="60" viewBox="0 0 60 60">
+          <circle stroke="rgba(255,255,255,0.12)" stroke-width="5" fill="none" cx="30" cy="30" r="24"/>
+          <circle id="ring-fill" stroke="#fbbf24" stroke-width="5" fill="none" cx="30" cy="30" r="24"
+            stroke-dasharray="150" stroke-dashoffset="150"
+            stroke-linecap="round" transform="rotate(-90 30 30)"/>
         </svg>
       </div>
+      <div class="dash-week-motivation" id="week-motivation">Continue comme ça !</div>
       <div class="dash-bars-row">
         <div class="week-bars" id="week-bars"></div>
       </div>
     </div>
+
+    <!-- ACTIVITÉ — mini courbe carousel -->
+    <div id="activity-dashboard-wrap" style="display:none;"></div>
 
   </div>
 
@@ -1724,6 +2043,8 @@
     <div class="section-title-row">
       <div class="section-title">Mes tâches</div>
       <div style="display:flex;gap:8px;">
+        <button class="advanced-filter-btn" id="student-btn" onclick="goToStudent()" title="Étudiant"><i class="fa-solid fa-graduation-cap"></i></button>
+        <button class="advanced-filter-btn" id="activity-btn" onclick="goToActivity()" title="Activité"><i class="fa-solid fa-chart-line"></i></button>
         <button class="advanced-filter-btn" id="memos-btn" onclick="goToMemos()" title="Mémos"><i class="fa-solid fa-note-sticky"></i></button>
         <button class="advanced-filter-btn" id="view-toggle-btn" onclick="toggleTaskView()" title="Vue Kanban"><i class="fa-solid fa-table-columns"></i></button>
         <button class="advanced-filter-btn" id="advanced-filter-btn" onclick="toggleAdvancedFilters()"><i class="fa-solid fa-sliders"></i></button>
@@ -1757,6 +2078,203 @@
   </div>
 
   <!-- SCREEN MÉMOS -->
+  <!-- ONBOARDING ÉTUDIANT (première ouverture) -->
+  <div class="student-onboarding" id="student-onboarding" style="display:none;">
+    <div class="onboarding-progress" id="onboarding-progress"></div>
+    <div id="onboarding-steps-wrap" style="width:100%;max-width:360px;"></div>
+  </div>
+
+  <!-- PARAMÈTRES ÉTUDIANT (slide depuis droite) -->
+  <div class="student-settings-panel" id="student-settings-panel">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;">
+      <button class="advanced-filter-btn" onclick="closeStudentSettings()"><i class="fa-solid fa-arrow-left"></i></button>
+      <div style="font-size:18px;font-weight:900;color:var(--text);">Paramètres étudiant</div>
+    </div>
+    <div id="student-settings-content"></div>
+  </div>
+
+  <!-- MODAL AJOUT / MODIFICATION COURS -->
+  <div class="modal-overlay" id="student-course-modal">
+    <div class="modal" style="max-height:85vh;overflow-y:auto;">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="course-modal-title">Ajouter un cours</div>
+
+      <div id="course-type-field">
+        <div class="field-label">Type</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="onboarding-option selected" id="course-type-cours"    style="flex:1;padding:10px;font-size:12px;" onclick="selectCourseType('cours')">📚 Cours</button>
+          <button class="onboarding-option"          id="course-type-revision" style="flex:1;padding:10px;font-size:12px;" onclick="selectCourseType('revision')">✍️ Révision</button>
+          <button class="onboarding-option"          id="course-type-autre"    style="flex:1;padding:10px;font-size:12px;" onclick="selectCourseType('autre')">📌 Autre</button>
+        </div>
+      </div>
+
+      <!-- Sélecteur matière ou champ texte selon le type -->
+      <div id="course-name-wrap"></div>
+
+      <div id="course-importance-wrap" style="margin-top:12px;">
+        <div class="field-label">Importance de la matière cette semaine</div>
+        <div class="course-importance-grid">
+          <div class="course-imp-chip selected" data-imp="high"   onclick="selectCourseImp('high',this)">⭐ Importante</div>
+          <div class="course-imp-chip"          data-imp="medium" onclick="selectCourseImp('medium',this)">Moyenne</div>
+          <div class="course-imp-chip"          data-imp="other"  onclick="selectCourseImp('other',this)">Autre</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:14px;">
+        <div style="flex:1;">
+          <div class="field-label">Début</div>
+          <input class="field-input" type="time" id="course-start-input" />
+        </div>
+        <div style="flex:1;">
+          <div class="field-label">Fin</div>
+          <input class="field-input" type="time" id="course-end-input" />
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn-secondary" onclick="closeModal('student-course-modal')">Annuler</button>
+        <button class="btn-primary" style="flex:2;" onclick="saveCourseBlock()">Enregistrer</button>
+      </div>
+      <button id="course-delete-btn" class="btn-danger" style="width:100%;margin-top:8px;display:none;" onclick="deleteCourseBlock()">Supprimer</button>
+    </div>
+  </div>
+
+  <!-- SCREEN ÉTUDIANT -->
+  <div class="screen" id="screen-student">
+    <!-- Onglets -->
+    <div style="display:flex;gap:0;margin-bottom:16px;background:var(--bg3);border-radius:14px;padding:3px;">
+      <button class="student-tab-btn active" data-tab="schedule" onclick="switchStudentTab('schedule')"
+        style="flex:1;padding:9px;border-radius:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--card);color:var(--text);transition:all 0.2s;">
+        <i class="fa-solid fa-calendar-week"></i> Programme
+      </button>
+      <button class="student-tab-btn" data-tab="subjects" onclick="switchStudentTab('subjects')"
+        style="flex:1;padding:9px;border-radius:11px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);transition:all 0.2s;">
+        <i class="fa-solid fa-book-open"></i> Matières
+      </button>
+    </div>
+
+    <!-- Vue Programme -->
+    <div id="student-schedule-view">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-size:16px;font-weight:900;color:var(--text);">Semaine</div>
+        <div style="display:flex;gap:8px;">
+          <button class="advanced-filter-btn" onclick="openStudentSettings()" title="Paramètres"><i class="fa-solid fa-gear"></i></button>
+          <button class="advanced-filter-btn" onclick="generateStudyPlan()" title="Générer les tâches d'étude"><i class="fa-solid fa-rotate"></i></button>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;" id="student-legend">
+        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);">
+          <div style="width:10px;height:10px;border-radius:2px;border-left:3px solid #fbbf24;background:rgba(255,255,255,0.1);"></div> Important
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);">
+          <div style="width:10px;height:10px;border-radius:2px;border-left:3px solid #94a3b8;background:rgba(255,255,255,0.1);opacity:0.9;"></div> Moyen
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text3);">
+          <div style="width:10px;height:10px;border-radius:2px;background:linear-gradient(135deg,#1d4ed8,#1e40af);border-left:3px solid #60a5fa;"></div> Étude
+        </div>
+      </div>
+      <div style="position:relative;">
+        <div style="position:absolute;left:0;top:40px;width:28px;z-index:3;" id="student-hour-labels"></div>
+        <div class="student-schedule" id="student-schedule" style="margin-left:28px;"></div>
+      </div>
+    </div>
+
+    <!-- Vue Matières -->
+    <div id="student-subjects-view" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:900;color:var(--text);">Mes matières</div>
+        <button class="btn-primary" style="padding:8px 16px;border-radius:12px;font-size:13px;" onclick="openAddSubjectModal()">
+          <i class="fa-solid fa-plus"></i> Ajouter
+        </button>
+      </div>
+      <div id="student-subjects-list"></div>
+    </div>
+  </div>
+
+  <!-- MODAL MATIÈRE -->
+  <div class="modal-overlay" id="subject-modal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="subject-modal-title">Nouvelle matière</div>
+      <div class="field-label">Nom de la matière</div>
+      <input class="field-input" id="subject-name-input" placeholder="Ex: Mathématiques" maxlength="40" />
+      <div class="field-label" style="margin-top:14px;">Couleur</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;">
+        <input type="hidden" id="selected-subject-color" value="#2563eb" />
+        <div class="subject-color-chip" data-color="#2563eb" onclick="selectSubjectColor('#2563eb')" style="width:32px;height:32px;border-radius:50%;background:#2563eb;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#dc2626" onclick="selectSubjectColor('#dc2626')" style="width:32px;height:32px;border-radius:50%;background:#dc2626;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#16a34a" onclick="selectSubjectColor('#16a34a')" style="width:32px;height:32px;border-radius:50%;background:#16a34a;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#f97316" onclick="selectSubjectColor('#f97316')" style="width:32px;height:32px;border-radius:50%;background:#f97316;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#a855f7" onclick="selectSubjectColor('#a855f7')" style="width:32px;height:32px;border-radius:50%;background:#a855f7;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#0ea5e9" onclick="selectSubjectColor('#0ea5e9')" style="width:32px;height:32px;border-radius:50%;background:#0ea5e9;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#db2777" onclick="selectSubjectColor('#db2777')" style="width:32px;height:32px;border-radius:50%;background:#db2777;cursor:pointer;"></div>
+        <div class="subject-color-chip" data-color="#65a30d" onclick="selectSubjectColor('#65a30d')" style="width:32px;height:32px;border-radius:50%;background:#65a30d;cursor:pointer;"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn-secondary" onclick="closeModal('subject-modal')">Annuler</button>
+        <button class="btn-primary" style="flex:2;" onclick="saveSubject()">Enregistrer</button>
+      </div>
+      <button id="subject-delete-btn" class="btn-danger" style="width:100%;margin-top:8px;display:none;" onclick="deleteSubject()">Supprimer cette matière</button>
+    </div>
+  </div>
+
+  <!-- MODAL CHAPITRES D'UNE MATIÈRE -->
+  <div class="modal-overlay" id="subject-detail-modal">
+    <div class="modal" style="max-height:85vh;overflow-y:auto;">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="subject-detail-title">Chapitres</div>
+
+      <!-- Statut de maîtrise de la matière -->
+      <div class="field-label" style="margin-bottom:8px;">Statut de la matière</div>
+      <div id="subject-mastery-picker" style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;"></div>
+
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px;padding-top:12px;border-top:1px solid var(--border);">
+        Appuie sur un chapitre pour changer son statut.
+      </div>
+      <div id="subject-chapters-list"></div>
+
+      <!-- Ajout chapitre -->
+      <div style="display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <input class="field-input" id="new-chapter-input" placeholder="Nom du chapitre" maxlength="60"
+          style="flex:1;" onkeydown="if(event.key==='Enter') addChapterToSubject();" />
+        <button class="btn-primary" style="padding:10px 14px;border-radius:12px;font-size:13px;" onclick="addChapterToSubject()">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+      <div class="modal-actions" style="margin-top:14px;">
+        <button class="btn-primary" style="flex:1;padding:14px;" onclick="closeModal('subject-detail-modal')">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN ACTIVITÉ -->
+  <div class="screen" id="screen-activity">
+    <div class="section-title-row" style="position:sticky;top:0;z-index:10;background:var(--bg);padding-bottom:8px;">
+      <div class="section-title-row-left">
+        <button class="advanced-filter-btn" onclick="goTo('tasks')" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="section-title">Activité</div>
+      </div>
+      <button class="advanced-filter-btn" onclick="openActivityEntry()" title="Saisir aujourd'hui"><i class="fa-solid fa-plus"></i></button>
+    </div>
+
+    <!-- Message si aucune activité configurée -->
+    <div id="activity-empty-state" style="display:none;text-align:center;padding:40px 20px;color:var(--text3);">
+      <i class="fa-solid fa-chart-line" style="font-size:40px;margin-bottom:12px;opacity:0.3;"></i>
+      <div style="font-size:14px;font-weight:600;margin-bottom:6px;">Aucune activité configurée</div>
+      <div style="font-size:12px;">Va dans Paramètres → Activité pour choisir ton profil.</div>
+    </div>
+
+    <!-- Saisie du jour -->
+    <div id="activity-entry-wrap" style="display:none;"></div>
+
+    <!-- Courbes de progression -->
+    <div id="activity-charts-wrap"></div>
+
+    <!-- Message de motivation -->
+    <div id="activity-motivation" style="display:none;margin-top:16px;padding:14px 16px;background:var(--card);border:1px solid var(--border);border-radius:16px;font-size:13px;color:var(--text);line-height:1.6;font-style:italic;"></div>
+  </div>
+
+  <!-- SCREEN MÉMOS -->
   <div class="screen" id="screen-memos">
     <!-- Vue liste -->
     <div id="memos-list-view">
@@ -1771,8 +2289,8 @@
     </div>
 
     <!-- Vue édition (zone de texte libre, pas de champs structurés) -->
-    <div id="memo-editor-view" style="display:none;">
-      <div class="section-title-row">
+    <div id="memo-editor-view" style="display:none;display:flex;flex-direction:column;min-height:100%;">
+      <div class="section-title-row" id="memo-editor-header" style="position:sticky;top:0;z-index:10;background:var(--bg);padding-top:4px;padding-bottom:4px;">
         <button class="advanced-filter-btn" onclick="closeMemoEditor()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
         <div style="display:flex;gap:8px;">
           <button class="advanced-filter-btn" id="memo-mic-btn" onclick="toggleMemoRecording()" title="Enregistrement vocal"><i class="fa-solid fa-microphone"></i></button>
@@ -1816,7 +2334,6 @@
       <button class="history-tab active" onclick="filterHistory('done', this)"><i class="fa-solid fa-circle-check"></i> Terminées</button>
       <button class="history-tab" onclick="filterHistory('deleted', this)"><i class="fa-solid fa-trash"></i> Supprimées</button>
       <button class="history-tab" onclick="filterHistory('missed', this)"><i class="fa-solid fa-clock-rotate-left"></i> Non faites</button>
-      <button class="history-tab" onclick="filterHistory('skipped', this)"><i class="fa-solid fa-forward-step"></i> Sautées</button>
     </div>
     <div id="history-list"></div>
   </div>
@@ -1825,8 +2342,9 @@
   <div class="screen" id="screen-teams">
     <div class="section-title">Équipes</div>
     <div style="display:flex; gap:10px; margin-bottom:16px;">
-      <button class="btn-primary" style="flex:1;padding:12px;border-radius:12px;font-size:14px;" onclick="openCreateTeam()"><i class="fa-solid fa-plus"></i> Créer une équipe</button>
-      <button class="btn-secondary" style="flex:1;padding:12px;border-radius:12px;font-size:14px;" onclick="openJoinTeam()"><i class="fa-solid fa-link"></i> Rejoindre</button>
+      <button class="btn-primary" style="flex:1;padding:12px;border-radius:12px;font-size:13px;" onclick="openDM()"><i class="fa-solid fa-message"></i> DM</button>
+      <button class="btn-primary" style="flex:1;padding:12px;border-radius:12px;font-size:13px;" onclick="openCreateTeam()"><i class="fa-solid fa-plus"></i> Créer</button>
+      <button class="btn-secondary" style="flex:1;padding:12px;border-radius:12px;font-size:13px;" onclick="openJoinTeam()"><i class="fa-solid fa-link"></i> Rejoindre</button>
     </div>
     <div id="teams-list"></div>
   </div>
@@ -1920,67 +2438,20 @@
     </div>
 
     <div class="settings-section">
-      <div class="settings-section-title">Avatar pour les groupes</div>
-      <div class="card" style="padding:14px;">
-        <div class="field-label" style="margin-bottom:10px;">Visible uniquement par les membres de tes équipes</div>
-        <div class="group-avatar-grid" id="group-avatar-grid"></div>
-      </div>
-    </div>
-
-    <div class="settings-section">
       <div class="settings-section-title">Apparence</div>
-      <div class="card" style="padding:14px;margin-bottom:10px;">
-        <div class="field-label" style="margin-bottom:10px;">Thème</div>
-        <div class="theme-switch">
-          <button class="theme-opt active" id="theme-dark-btn" onclick="setTheme('dark')"><i class="fa-solid fa-moon"></i> Sombre</button>
-          <button class="theme-opt" id="theme-light-btn" onclick="setTheme('light')"><i class="fa-solid fa-sun"></i> Clair</button>
-        </div>
-      </div>
-      <div class="card" style="padding:14px;">
-        <div class="field-label" style="margin-bottom:10px;">Couleur d'accent</div>
-        <div style="display:flex;gap:14px;" id="accent-color-picker">
-          <div class="accent-dot selected" data-accent="blue" onclick="setAccentColor('blue')"><div class="accent-dot-inner" style="background:#2563eb;"></div></div>
-          <div class="accent-dot" data-accent="green" onclick="setAccentColor('green')"><div class="accent-dot-inner" style="background:#16a34a;"></div></div>
-          <div class="accent-dot" data-accent="orange" onclick="setAccentColor('orange')"><div class="accent-dot-inner" style="background:#ea580c;"></div></div>
-          <div class="accent-dot" data-accent="purple" onclick="setAccentColor('purple')"><div class="accent-dot-inner" style="background:#7c3aed;"></div></div>
-        </div>
+      <div class="settings-item" onclick="openAppearanceModal()">
+        <div class="settings-item-icon" style="background:#2563eb22;"><i class="fa-solid fa-palette"></i></div>
+        <div class="settings-item-text"><div class="settings-item-label">Thème, couleur et avatar de groupe</div></div>
+        <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
       </div>
     </div>
 
     <div class="settings-section">
       <div class="settings-section-title">Mon compte</div>
-      <div class="settings-item" onclick="openEditPseudo()">
-        <div class="settings-item-icon" style="background:#2563eb22;"><i class="fa-solid fa-user-pen"></i></div>
-        <div class="settings-item-text">
-          <div class="settings-item-label">Modifier le pseudo</div>
-        </div>
+      <div class="settings-item" onclick="openAccountModal()">
+        <div class="settings-item-icon" style="background:#f9731622;"><i class="fa-solid fa-user-gear"></i></div>
+        <div class="settings-item-text"><div class="settings-item-label">Pseudo, mot de passe et compte</div></div>
         <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
-      </div>
-      <div class="settings-item" onclick="openEditPassword()">
-        <div class="settings-item-icon" style="background:#f9731622;"><i class="fa-solid fa-key"></i></div>
-        <div class="settings-item-text">
-          <div class="settings-item-label">Changer le mot de passe</div>
-        </div>
-        <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
-      </div>
-    </div>
-
-    <div class="settings-section">
-      <div class="settings-section-title">Notifications</div>
-      <div class="settings-item">
-        <div class="settings-item-icon" style="background:#22c55e22;"><i class="fa-solid fa-bell"></i></div>
-        <div class="settings-item-text">
-          <div class="settings-item-label">Notifications activées</div>
-          <div class="settings-item-sub" id="notif-status-text">Vérification…</div>
-        </div>
-        <div class="toggle on" id="notif-toggle" onclick="toggleNotifications()"></div>
-      </div>
-      <div class="settings-item">
-        <div class="settings-item-icon" style="background:#8b5cf622;"><i class="fa-solid fa-users"></i></div>
-        <div class="settings-item-text">
-          <div class="settings-item-label">Notifs des groupes</div>
-        </div>
-        <div class="toggle on" id="group-notif-toggle" onclick="toggleGroupNotif()"></div>
       </div>
     </div>
 
@@ -2039,13 +2510,10 @@
 
     <div class="settings-section">
       <div class="settings-section-title">Confidentialité</div>
-      <div class="settings-item">
-        <div class="settings-item-icon" style="background:#6366f122;"><i class="fa-solid fa-eye-slash"></i></div>
-        <div class="settings-item-text">
-          <div class="settings-item-label">Masquer mon pseudo</div>
-          <div class="settings-item-sub">Les autres membres ne voient pas votre pseudo</div>
-        </div>
-        <div class="toggle" id="hide-pseudo-toggle" onclick="toggleHidePseudo()"></div>
+      <div class="settings-item" onclick="openPrivacyModal()">
+        <div class="settings-item-icon" style="background:#6366f122;"><i class="fa-solid fa-lock"></i></div>
+        <div class="settings-item-text"><div class="settings-item-label">Notifications, amis et visibilité</div></div>
+        <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
       </div>
     </div>
 
@@ -2070,14 +2538,14 @@
 
     <div class="settings-section">
       <div class="settings-section-title">Compte</div>
-      <div class="settings-item" onclick="doLogout()">
+      <div class="settings-item" onclick="openLogoutModal()">
         <div class="settings-item-icon" style="background:#ef444422;"><i class="fa-solid fa-right-from-bracket"></i></div>
         <div class="settings-item-text"><div class="settings-item-label" style="color:var(--red);">Déconnexion</div></div>
       </div>
     </div>
 
     <div style="text-align:center;padding:24px 0 8px;color:var(--text3);font-size:12px;">
-      TRIVO v4.12
+      TRIVO v7.11
     </div>
   </div>
 
@@ -2254,11 +2722,15 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title" id="team-modal-title">Créer une équipe</div>
-    <div class="field-label">Nom de l'équipe</div>
+    <div class="field-label" id="team-name-label">Nom de l'équipe</div>
     <input class="field-input" id="team-name-input" placeholder="Ex: Groupe de révision" maxlength="40" />
     <div id="join-id-wrap" style="display:none">
       <div class="field-label">ID de l'équipe</div>
       <input class="field-input" id="team-join-id-input" placeholder="Colle l'ID partagé ici" />
+    </div>
+    <!-- Résultats de recherche DM -->
+    <div id="dm-results-wrap" style="display:none;margin-top:10px;">
+      <div id="dm-results-list" style="max-height:220px;overflow-y:auto;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeTeamModal()">Annuler</button>
@@ -2285,7 +2757,51 @@
     <div class="team-chat-inputbar">
       <button class="team-chat-addbtn" onclick="openTeamTaskModal()"><i class="fa-solid fa-plus"></i></button>
       <textarea class="team-chat-input" id="team-chat-input" placeholder="Écrire un message…" rows="1" oninput="handleTypingInput(); autoGrowChatInput(this);" onkeydown="if(event.key==='Enter' && !event.shiftKey && window.matchMedia('(pointer: fine)').matches){event.preventDefault();sendTeamMessage();}"></textarea>
-      <button class="team-chat-sendbtn" onclick="sendTeamMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+      <button class="team-chat-sendbtn" id="team-chat-send-btn" onclick="sendTeamMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PARAMÈTRES ACTIVITÉ -->
+<div class="modal-overlay" id="activity-settings-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fa-solid fa-chart-line"></i> Mon activité</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Sélectionne les profils qui te correspondent. Tu peux en avoir plusieurs.</div>
+    <div class="activity-profile-grid" id="activity-profile-chips"></div>
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn-primary" style="flex:1;padding:14px;" onclick="closeModal('activity-settings-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SAISIE ACTIVITÉ -->
+<div class="modal-overlay" id="activity-entry-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fa-solid fa-chart-line"></i> Saisie du jour</div>
+    <div id="activity-entry-fields"></div>
+    <button class="activity-save-btn" onclick="saveActivityEntry()">Enregistrer</button>
+    <div class="modal-actions" style="margin-top:8px;">
+      <button class="btn-secondary" style="flex:1;" onclick="closeModal('activity-entry-modal')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DÉCONNEXION -->
+<div class="modal-overlay" id="logout-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Déconnexion</div>
+    <div class="field-label">Mot de passe</div>
+    <input class="field-input" id="logout-password-input" type="password" placeholder="Mot de passe" autocomplete="current-password" />
+    <div id="logout-error-msg" style="display:none;color:var(--red);font-size:13px;margin-top:8px;"></div>
+    <div class="modal-actions" style="margin-top:14px;">
+      <button class="btn-secondary" id="logout-cancel-btn" onclick="closeModal('logout-modal')">Annuler</button>
+      <button class="btn-danger" id="logout-confirm-btn" onclick="confirmLogout()">
+        <span id="logout-confirm-label">Déconnexion</span>
+        <i class="fa-solid fa-spinner fa-spin" id="logout-spinner" style="display:none;"></i>
+      </button>
     </div>
   </div>
 </div>
@@ -2294,27 +2810,30 @@
 <div class="modal-overlay" id="team-info-modal">
   <div class="modal">
     <div class="modal-handle"></div>
-    <div class="modal-title">Informations</div>
-    <div class="card" style="margin-bottom:14px;" id="team-id-card">
-      <div class="card-title">ID de l'équipe (partager)</div>
-      <div style="display:flex;align-items:center;gap:10px;">
-        <div id="team-detail-id" style="font-family:monospace;font-size:15px;color:var(--blue-light);flex:1;overflow:hidden;text-overflow:ellipsis;"></div>
-        <button class="btn-secondary" id="copy-id-btn" style="padding:8px 14px;border-radius:8px;font-size:12px;" onclick="copyTeamId()">Copier</button>
+    <div class="modal-title" id="team-info-title">Informations</div>
+    <!-- Groupe : ID + membres -->
+    <div id="team-group-info">
+      <div class="card" style="margin-bottom:14px;" id="team-id-card">
+        <div class="card-title">ID de l'équipe (partager)</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div id="team-detail-id" style="font-family:monospace;font-size:15px;color:var(--blue-light);flex:1;overflow:hidden;text-overflow:ellipsis;"></div>
+          <button class="btn-secondary" id="copy-id-btn" style="padding:8px 14px;border-radius:8px;font-size:12px;" onclick="copyTeamId()">Copier</button>
+        </div>
+        <div id="owner-id-copy-toggle-row" style="display:none;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <span style="font-size:12px;color:var(--text2);">Autoriser les membres à copier l'ID</span>
+          <div class="toggle on" id="allow-id-copy-toggle" onclick="toggleAllowIdCopy()"></div>
+        </div>
       </div>
-      <div id="owner-id-copy-toggle-row" style="display:none;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-        <span style="font-size:12px;color:var(--text2);">Autoriser les membres à copier l'ID</span>
-        <div class="toggle on" id="allow-id-copy-toggle" onclick="toggleAllowIdCopy()"></div>
+      <div class="card-title">Membres</div>
+      <div id="team-members-list" style="margin-bottom:14px;"></div>
+      <div id="pending-members-wrap" style="display:none">
+        <div class="card-title" style="margin-bottom:8px;"><i class="fa-solid fa-hourglass-half"></i> En attente de validation</div>
+        <div id="pending-members-list" style="margin-bottom:14px;"></div>
       </div>
-    </div>
-    <div class="card-title">Membres</div>
-    <div id="team-members-list" style="margin-bottom:14px;"></div>
-    <div id="pending-members-wrap" style="display:none">
-      <div class="card-title" style="margin-bottom:8px;"><i class="fa-solid fa-hourglass-half"></i> En attente de validation</div>
-      <div id="pending-members-list" style="margin-bottom:14px;"></div>
     </div>
     <div class="modal-actions" style="margin-top:10px;">
       <button class="btn-secondary" onclick="closeModal('team-info-modal')">Fermer</button>
-      <button class="btn-danger" onclick="leaveTeam()">Quitter l'équipe</button>
+      <button class="btn-danger" id="team-leave-btn" onclick="leaveTeam()">Quitter l'équipe</button>
     </div>
   </div>
 </div>
@@ -2341,6 +2860,186 @@
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeTeamTaskModal()">Annuler</button>
       <button class="btn-primary" style="flex:2" onclick="saveTeamTask()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AIDE -->
+<!-- MODAL APPARENCE -->
+<div class="modal-overlay" id="appearance-modal">
+  <div class="modal" style="max-height:80vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fa-solid fa-palette"></i> Apparence</div>
+
+    <div class="card" style="padding:14px;margin-bottom:10px;">
+      <div class="field-label" style="margin-bottom:10px;">Thème</div>
+      <div class="theme-switch">
+        <button class="theme-opt active" id="theme-dark-btn" onclick="setTheme('dark')"><i class="fa-solid fa-moon"></i> Sombre</button>
+        <button class="theme-opt" id="theme-light-btn" onclick="setTheme('light')"><i class="fa-solid fa-sun"></i> Clair</button>
+      </div>
+      <!-- Thèmes premium -->
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+        <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;font-weight:700;margin-bottom:10px;">Thèmes premium</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div id="theme-cosmos-wrap" onclick="tryUnlockTheme('cosmos')">
+            <button class="theme-opt" id="theme-cosmos-btn" style="width:100%;justify-content:flex-start;gap:10px;padding:12px 14px;">
+              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#3b82f6);flex-shrink:0;"></span>
+              Cosmos
+              <span id="cosmos-lock" style="margin-left:auto;font-size:11px;color:var(--text3);"><i class="fa-solid fa-lock"></i> Semaine parfaite</span>
+            </button>
+          </div>
+          <div id="theme-sunrise-wrap" onclick="tryUnlockTheme('sunrise')">
+            <button class="theme-opt" id="theme-sunrise-btn" style="width:100%;justify-content:flex-start;gap:10px;padding:12px 14px;">
+              <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#ea580c,#fbbf24);flex-shrink:0;"></span>
+              Soleil Levant
+              <span id="sunrise-lock" style="margin-left:auto;font-size:11px;color:var(--text3);"><i class="fa-solid fa-lock"></i> Mois parfait</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px;margin-bottom:10px;">
+      <div class="field-label" style="margin-bottom:10px;">Couleur d'accent</div>
+      <div style="display:flex;gap:14px;" id="accent-color-picker">
+        <div class="accent-dot selected" data-accent="blue" onclick="setAccentColor('blue')"><div class="accent-dot-inner" style="background:#2563eb;"></div></div>
+        <div class="accent-dot" data-accent="green" onclick="setAccentColor('green')"><div class="accent-dot-inner" style="background:#16a34a;"></div></div>
+        <div class="accent-dot" data-accent="orange" onclick="setAccentColor('orange')"><div class="accent-dot-inner" style="background:#ea580c;"></div></div>
+        <div class="accent-dot" data-accent="purple" onclick="setAccentColor('purple')"><div class="accent-dot-inner" style="background:#7c3aed;"></div></div>
+      </div>
+    </div>
+
+    <div class="card" style="padding:14px;">
+      <div class="field-label" style="margin-bottom:10px;">Avatar pour les groupes</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Visible uniquement pour les groupes</div>
+      <div class="group-avatar-grid" id="group-avatar-grid"></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn-primary" style="flex:1;padding:14px;" onclick="closeModal('appearance-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MON COMPTE -->
+<div class="modal-overlay" id="account-modal">
+  <div class="modal" style="max-height:80vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fa-solid fa-user-gear"></i> Mon compte</div>
+
+    <div class="settings-item" onclick="openEditPseudo()">
+      <div class="settings-item-icon" style="background:#2563eb22;"><i class="fa-solid fa-user-pen"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label">Modifier le pseudo</div></div>
+      <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+    <div class="settings-item" onclick="openEditUsername()">
+      <div class="settings-item-icon" style="background:#0ea5e922;"><i class="fa-solid fa-at"></i></div>
+      <div class="settings-item-text">
+        <div class="settings-item-label">Nom d'utilisateur</div>
+        <div class="settings-item-sub" id="current-username-display">—</div>
+      </div>
+      <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+    <div class="settings-item" onclick="openEditPassword()">
+      <div class="settings-item-icon" style="background:#f9731622;"><i class="fa-solid fa-key"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label">Changer le mot de passe</div></div>
+      <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+    <div class="settings-item" onclick="openActivitySettings()">
+      <div class="settings-item-icon" style="background:#22c55e22;"><i class="fa-solid fa-chart-line"></i></div>
+      <div class="settings-item-text">
+        <div class="settings-item-label">Mon activité</div>
+        <div class="settings-item-sub" id="activity-profiles-summary">Non configuré</div>
+      </div>
+      <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+    <div class="settings-item" onclick="openDeleteAccountModal()">
+      <div class="settings-item-icon" style="background:#ef444422;"><i class="fa-solid fa-user-xmark"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label" style="color:var(--red);">Supprimer mon compte</div></div>
+      <div class="settings-item-right"><i class="fa-solid fa-chevron-right"></i></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn-primary" style="flex:1;padding:14px;" onclick="closeModal('account-modal')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SUPPRESSION DE COMPTE -->
+<div class="modal-overlay" id="delete-account-modal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="color:var(--red);"><i class="fa-solid fa-triangle-exclamation"></i> Supprimer mon compte</div>
+
+    <div class="card" style="padding:14px;margin-bottom:12px;border:1px solid var(--red);">
+      <div class="field-label" style="color:var(--red);margin-bottom:8px;">Ce que vous perdrez définitivement</div>
+      <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+        — Toutes vos tâches et mémos<br>
+        — Votre accès à tous vos groupes<br>
+        — Les groupes dont vous êtes le seul membre<br>
+        — Votre compte Trivo (email et mot de passe)<br><br>
+        <span style="color:var(--text3);">Ce qui est conservé : vos messages déjà envoyés dans les groupes, et les groupes partagés (le membre le plus ancien devient administrateur).</span>
+      </div>
+    </div>
+
+    <div class="field-label">Email</div>
+    <input class="field-input" id="delete-account-email" type="email" placeholder="Votre adresse email" autocomplete="email" style="margin-bottom:10px;" />
+
+    <div class="field-label">Mot de passe</div>
+    <input class="field-input" id="delete-account-password" type="password" placeholder="Votre mot de passe" autocomplete="current-password" />
+
+    <div id="delete-account-error" style="display:none;color:var(--red);font-size:13px;margin-top:8px;"></div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn-secondary" id="delete-account-cancel-btn" onclick="closeModal('delete-account-modal')">Annuler</button>
+      <button class="btn-danger" id="delete-account-confirm-btn" onclick="confirmDeleteAccount()">
+        <span id="delete-account-label">Supprimer définitivement</span>
+        <i class="fa-solid fa-spinner fa-spin" id="delete-account-spinner" style="display:none;"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIDENTIALITÉ -->
+<div class="modal-overlay" id="privacy-modal">
+  <div class="modal" style="max-height:80vh;overflow-y:auto;">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="fa-solid fa-lock"></i> Confidentialité</div>
+
+    <div class="settings-item">
+      <div class="settings-item-icon" style="background:#22c55e22;"><i class="fa-solid fa-bell"></i></div>
+      <div class="settings-item-text">
+        <div class="settings-item-label">Notifications activées</div>
+        <div class="settings-item-sub" id="notif-status-text">Vérification…</div>
+      </div>
+      <div class="toggle on" id="notif-toggle" onclick="toggleNotifications()"></div>
+    </div>
+    <div class="settings-item">
+      <div class="settings-item-icon" style="background:#8b5cf622;"><i class="fa-solid fa-users"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label">Notifs des groupes</div></div>
+      <div class="toggle on" id="group-notif-toggle" onclick="toggleGroupNotif()"></div>
+    </div>
+    <div class="settings-item">
+      <div class="settings-item-icon" style="background:#0ea5e922;"><i class="fa-solid fa-user-group"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label">Mes amis</div></div>
+      <div class="settings-item-right" id="friends-count-text" style="color:var(--text3);font-size:13px;">0</div>
+    </div>
+    <div class="settings-item">
+      <div class="settings-item-icon" style="background:#a855f722;"><i class="fa-solid fa-people-group"></i></div>
+      <div class="settings-item-text"><div class="settings-item-label">Présence en groupe</div></div>
+      <div class="settings-item-right" id="teams-count-text" style="color:var(--text3);font-size:13px;">0</div>
+    </div>
+    <div class="settings-item">
+      <div class="settings-item-icon" style="background:#6366f122;"><i class="fa-solid fa-eye-slash"></i></div>
+      <div class="settings-item-text">
+        <div class="settings-item-label">Masquer mon pseudo</div>
+        <div class="settings-item-sub">Les autres membres ne voient pas votre pseudo</div>
+      </div>
+      <div class="toggle" id="hide-pseudo-toggle" onclick="toggleHidePseudo()"></div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:20px;">
+      <button class="btn-primary" style="flex:1;padding:14px;" onclick="closeModal('privacy-modal')">Fermer</button>
     </div>
   </div>
 </div>
@@ -2424,7 +3123,7 @@
       <div class="thanks-credits">
         <div class="thanks-credit-line"><i class="fa-solid fa-lightbulb" style="color:#facc15;"></i> Idée originale — <strong>Kadjane Berenger</strong></div>
         <div class="thanks-credit-line"><i class="fa-solid fa-palette" style="color:#a78bfa;"></i> Choix de design — <strong>Sylla Audrey</strong></div>
-        <div class="thanks-credit-line"><i class="fa-solid fa-code" style="color:#60a5fa;"></i> Développement — & <strong>Kadjane Berenger</strong></div>
+        <div class="thanks-credit-line"><i class="fa-solid fa-code" style="color:#60a5fa;"></i> Développement — <strong>Kadjane Berenger</strong></div>
       </div>
       <p style="font-size:13px;color:var(--text3);font-style:italic;margin-top:18px;">
         Merci d'avoir cru en ce projet du début à la fin. 💙
@@ -2448,6 +3147,10 @@
 <!-- Scripts classiques, chargés dans l'ordre avec defer pour garantir qu'ils
      s'exécutent après le pont Firebase ET dans l'ordre où ils apparaissent ici -->
 <script defer src="core.js"></script>
+<script defer src="sync.js"></script>
+<script defer src="activity.js"></script>
+<script defer src="motivation.js"></script>
+<script defer src="student.js"></script>
 <script defer src="dashboard.js"></script>
 <script defer src="tasks.js"></script>
 <script defer src="memos.js"></script>

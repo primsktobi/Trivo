@@ -217,14 +217,141 @@ window.openEditPassword = async () => {
     .catch(()=>showToast('❌ Erreur lors du changement'));
 };
 
-window.openThanksModal = () => document.getElementById('thanks-modal').classList.add('open');
+window.openEditUsername = async () => {
+  const current = userProfile.username || '';
+  const val = prompt(`Nom d'utilisateur actuel : ${current || '—'}\n\nNouveau nom d'utilisateur :`, current);
+  if (val === null) return;
+  const newUsername = val.trim().toLowerCase();
+  if (!newUsername) { showToast('Nom d\'utilisateur vide'); return; }
+  if (/\s/.test(newUsername)) { showToast('Pas d\'espace autorisé'); return; }
+  if (newUsername.length < 3) { showToast('3 caractères minimum'); return; }
+  if (newUsername === current) return;
+
+  try {
+    // Vérification unicité
+    const check = await getDocs(query(collection(db, 'users'), where('username', '==', newUsername)));
+    if (!check.empty) { showToast('Ce nom d\'utilisateur est déjà utilisé'); return; }
+
+    await updateDoc(doc(db, 'users', currentUser.uid), { username: newUsername });
+    userProfile.username = newUsername;
+    const el = document.getElementById('current-username-display');
+    if (el) el.textContent = `@${newUsername}`;
+    showToast('Nom d\'utilisateur mis à jour');
+  } catch (e) {
+    showToast('Une erreur est survenue');
+    console.error(e);
+  }
+};
+
+window.openAppearanceModal = () => {
+  document.getElementById('appearance-modal').classList.add('open');
+  renderGroupAvatarGrid();
+};
+
+window.openAccountModal = () => {
+  const el = document.getElementById('current-username-display');
+  if (el) el.textContent = userProfile.username ? `@${userProfile.username}` : 'Non défini';
+  document.getElementById('account-modal').classList.add('open');
+};
+
+window.openPrivacyModal = () => {
+  document.getElementById('privacy-modal').classList.add('open');
+  updatePrivacyCounters();
+};
+
+// "Présence en groupe" — nombre de groupes où l'utilisateur est membre.
+// Basé sur les ID réels de myTeams, pas une estimation, pour rester
+// fiable le jour où les DM rejoindront cette liste.
+function updatePrivacyCounters() {
+  const teamsEl = document.getElementById('teams-count-text');
+  if (teamsEl) teamsEl.textContent = myTeams.filter(t => t.id).length;
+  // "Mes amis" — fonctionnalité à venir, affiché à 0 pour l'instant
+  const friendsEl = document.getElementById('friends-count-text');
+  if (friendsEl) friendsEl.textContent = '0';
+}
+
+window.openDeleteAccountModal = () => {
+  document.getElementById('delete-account-email').value = '';
+  document.getElementById('delete-account-password').value = '';
+  document.getElementById('delete-account-error').style.display = 'none';
+  document.getElementById('delete-account-modal').classList.add('open');
+  setTimeout(() => document.getElementById('delete-account-email').focus(), 100);
+};
+
+function _setDeleteAccountLoading(loading) {
+  document.getElementById('delete-account-label').style.display  = loading ? 'none'   : 'inline';
+  document.getElementById('delete-account-spinner').style.display = loading ? 'inline' : 'none';
+  document.getElementById('delete-account-confirm-btn').disabled  = loading;
+  document.getElementById('delete-account-cancel-btn').disabled   = loading;
+  document.getElementById('delete-account-email').disabled        = loading;
+  document.getElementById('delete-account-password').disabled     = loading;
+}
+
+function _showDeleteAccountError(msg) {
+  const el = document.getElementById('delete-account-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+window.confirmDeleteAccount = async () => {
+  document.getElementById('delete-account-error').style.display = 'none';
+
+  if (!navigator.onLine) {
+    _showDeleteAccountError('Vérifiez votre connexion internet');
+    return;
+  }
+
+  const email    = document.getElementById('delete-account-email').value.trim();
+  const password = document.getElementById('delete-account-password').value;
+
+  if (!email || !password) {
+    _showDeleteAccountError('Email et mot de passe requis');
+    return;
+  }
+
+  _setDeleteAccountLoading(true);
+
+  try {
+    // Réauthentification côté client avant d'appeler la Cloud Function
+    const credential = EmailAuthProvider.credential(email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+
+    // Appel de la Cloud Function — Admin SDK se charge de tout nettoyer
+    const deleteAccount = httpsCallable(functions, 'deleteUserAccount');
+    await deleteAccount();
+
+    // Purge des deux IDB locales — le compte n'existe plus
+    await purgeLocalDataOnLogout();
+
+    // Ferme tout et redirige vers l'écran login
+    document.getElementById('delete-account-modal').classList.remove('open');
+    document.getElementById('account-modal').classList.remove('open');
+    await signOut(auth);
+
+  } catch (err) {
+    _setDeleteAccountLoading(false);
+    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      _showDeleteAccountError('Email ou mot de passe incorrect');
+    } else if (err.code === 'auth/network-request-failed') {
+      _showDeleteAccountError('Vérifiez votre connexion internet');
+    } else if (err.code === 'auth/user-mismatch') {
+      _showDeleteAccountError('Cet email ne correspond pas à votre compte');
+    } else {
+      _showDeleteAccountError('Une erreur est survenue');
+      console.error('Delete account error:', err);
+    }
+  }
+};
 
 window.setAccentColor = async (color) => {
   document.documentElement.setAttribute('data-accent', color === 'blue' ? '' : color);
   document.querySelectorAll('.accent-dot').forEach(d => d.classList.toggle('selected', d.dataset.accent === color));
   await savePref('accentColor', color);
   settings.accentColor = color;
-  if (currentUser) await updateDoc(doc(db,'users',currentUser.uid), { settings }).catch(()=>{});
+  if (currentUser) {
+    await queuePushMerge('update', 'users', currentUser.uid, { settings });
+    if (navigator.onLine) await window.queueFlush();
+  }
 };
 
 const HELP_CONTENT = [
@@ -249,6 +376,9 @@ const HELP_CONTENT = [
     Crée une équipe ou rejoins-en une avec son ID. Le créateur valide les demandes d'adhésion.<br><br>
     Choisis un avatar de groupe dans Paramètres, visible uniquement par tes coéquipiers. Le créateur peut aussi autoriser ou bloquer la copie de l'ID de l'équipe.<br><br>
     Dans le chat d'équipe, les messages et les tâches partagées se mélangent dans le même fil, avec réactions (1 par personne).` },
+  { key: 'dm', icon: 'fa-message', title: 'Messages privés (DM)', body: `
+    Dans le but de garder vos conversations confidentielles, elles dureront <strong>72h</strong> puis seront supprimées automatiquement. De plus, vous avez <strong>50 messages maximum</strong> afin de mieux garantir la confidentialité de vos échanges.<br><br>
+    Tu peux bloquer une personne depuis le menu info du DM. Les messages envoyés pendant la période de blocage ne s'afficheront plus jamais, même après déblocage.` },
   { key: 'settings', icon: 'fa-gear', title: 'Paramètres', body: `
     Personnalise ton thème (sombre/clair), ta couleur d'accent (bleu/vert/orange/violet), ton pseudo et mot de passe (avec confirmation de l'ancien), tes notifications, et les réglages du mode concentration.` },
 ];

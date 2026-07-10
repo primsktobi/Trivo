@@ -5,24 +5,30 @@ function renderDashboard() {
   weekStart.setHours(0,0,0,0);
   const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
 
-  const remaining = tasks.filter(t => t.status === 'pending' && !isPastDue(t)).length;
   const done = tasks.filter(t => t.status === 'done').length;
-  const missed = tasks.filter(t => t.status === 'missed' || (t.status === 'pending' && isPastDue(t))).length;
 
   const hoursOf = arr => arr.reduce((s, t) => s + (parseFloat(t.hours) || 0), 0);
-  setText('stat-remaining', remaining);
   setText('stat-done', done);
-  setText('stat-missed', missed);
-  setText('stat-remaining-h', `${hoursOf(tasks.filter(t => t.status==='pending' && !isPastDue(t)))}h estimées`);
   setText('stat-done-h', `${hoursOf(tasks.filter(t => t.status==='done'))}h complétées`);
-  setText('stat-missed-h', `${hoursOf(tasks.filter(t => t.status==='missed'||(t.status==='pending'&&isPastDue(t))))}h perdues`);
 
   const weekTasks = tasks.filter(t => { if (!t.date) return false; const d=new Date(t.date); return d>=weekStart && d<weekEnd; });
   const weekDone = weekTasks.filter(t => t.status==='done').length;
   const pct = weekTasks.length > 0 ? Math.round(weekDone/weekTasks.length*100) : 0;
   setText('ring-pct', pct + '%');
   const ring = document.getElementById('ring-fill');
-  if (ring) ring.style.strokeDashoffset = 138 - (pct/100)*138;
+  if (ring) ring.style.strokeDashoffset = 150 - (pct/100)*150;
+
+  // Message de motivation dynamique selon progression hebdo
+  const motEl = document.getElementById('week-motivation');
+  if (motEl) {
+    const msgs = pct === 0  ? ['Commence ta semaine avec énergie !', 'La première tâche est la plus importante.'] :
+                 pct < 25   ? ['Tu es lancé, continue !', 'Chaque tâche compte.'] :
+                 pct < 50   ? ['Belle progression cette semaine.', 'Tu es sur la bonne voie.'] :
+                 pct < 75   ? ['Plus de la moitié du chemin parcouru !', 'Tu dépasses tes objectifs.'] :
+                 pct < 100  ? ['Presque au sommet — ne lâche pas !', 'La ligne d\'arrivée est proche.'] :
+                              ['Semaine parfaite. Tu es inarrêtable.', '100% cette semaine. Bravo.'];
+    motEl.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+  }
 
   const days = ['L','M','M','J','V','S','D'];
   const barsEl = document.getElementById('week-bars');
@@ -44,6 +50,8 @@ function renderDashboard() {
   renderUpcomingTasks();
   renderStreak();
   renderHabits();
+  if (typeof renderCoachMessage === 'function') renderCoachMessage();
+  if (typeof checkThemeUnlocks === 'function') checkThemeUnlocks();
 }
 
 
@@ -76,25 +84,184 @@ function renderHabits() {
   }).join('');
 }
 
-function renderStreak() {
-  const numEl = document.getElementById('streak-count');
-  const flameEl = document.getElementById('streak-flame');
-  const barEl = document.getElementById('dash-streak-bar');
-  if (!numEl) return;
+// ── FLAMME VIVANTE ────────────────────────────────────────────────────────────
+// Score cumulatif sauvegardé dans Firebase et IDB
+// Base : 35% au premier lancement
+// +5 par tâche complétée (bonus +3 si toutes les tâches du jour faites)
+// -5 par jour sans aucune tâche complétée
+// Min: 10%, Max: 100%
+
+let flameScore = 35; // valeur par défaut premier lancement
+let flameCarouselIndex = 0;
+let flameCarouselTimer = null;
+
+async function loadFlameScore() {
+  // 1. IDB d'abord (offline-first)
+  const cached = await idbGet('prefs', 'flameScore');
+  if (cached?.value !== undefined) flameScore = cached.value;
+  // 2. Firebase en arrière-plan
+  if (currentUser) {
+    try {
+      const snap = await getDoc(doc(db, 'users', currentUser.uid));
+      if (snap.exists() && snap.data().flameScore !== undefined) {
+        flameScore = snap.data().flameScore;
+        await idbPut('prefs', { key: 'flameScore', value: flameScore });
+      }
+    } catch(e) {}
+  }
+  renderFlame();
+}
+
+async function saveFlameScore() {
+  await idbPut('prefs', { key: 'flameScore', value: flameScore });
+  if (currentUser) {
+    updateDoc(doc(db, 'users', currentUser.uid), { flameScore }).catch(() => {});
+  }
+}
+
+async function updateFlameOnTaskComplete(taskId) {
+  const today = fmtDate(new Date());
+  const todayTasks = tasks.filter(t => t.date === today && t.status !== 'deleted');
+  const todayDone = tasks.filter(t => t.date === today && t.status === 'done');
+  const allDone = todayTasks.length > 0 && todayDone.length >= todayTasks.length;
+
+  flameScore = Math.min(100, flameScore + 5 + (allDone ? 3 : 0));
+  await saveFlameScore();
+  renderFlame();
+  // Particules au clic
+  spawnFlameParticles();
+}
+
+function checkFlameDailyDecay() {
+  // Vérifie si hier aucune tâche n'a été complétée → diminue la flamme
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  const yd = fmtDate(yesterday);
+  const hadActivity = tasks.some(t => t.date === yd && t.status === 'done');
+  if (!hadActivity) {
+    flameScore = Math.max(10, flameScore - 5);
+    saveFlameScore();
+  }
+}
+
+function renderFlame() {
+  const card = document.getElementById('flame-card');
+  const wrap = document.getElementById('flame-wrap');
+  if (!card || !wrap) return;
+
+  // Couleurs selon niveau — appliquées directement sur les attributs fill SVG
+  // pour garantir l'affichage sur tous les navigateurs et OS
+  let colors = { outer:'#dc2626', mid:'#f97316', core:'#fbbf24', tip:'#93c5fd',
+                 glow:'rgba(249,115,22,0.6)' };
+  let szClass = 'sz2'; let heatClass = 'heat-low';
+
+  if (flameScore >= 85) {
+    colors = { outer:'#7e22ce', mid:'#a855f7', core:'#c084fc', tip:'#67e8f9', glow:'rgba(168,85,247,0.6)' };
+    szClass = 'sz5'; heatClass = 'heat-max';
+  } else if (flameScore >= 65) {
+    colors = { outer:'#991b1b', mid:'#ef4444', core:'#f97316', tip:'#60a5fa', glow:'rgba(239,68,68,0.6)' };
+    szClass = 'sz4'; heatClass = 'heat-high';
+  } else if (flameScore >= 50) {
+    colors = { outer:'#dc2626', mid:'#f97316', core:'#fbbf24', tip:'#93c5fd', glow:'rgba(249,115,22,0.6)' };
+    szClass = 'sz3'; heatClass = 'heat-mid';
+  } else if (flameScore >= 35) {
+    colors = { outer:'#dc2626', mid:'#f97316', core:'#fbbf24', tip:'#93c5fd', glow:'rgba(249,115,22,0.6)' };
+    szClass = 'sz2'; heatClass = 'heat-low';
+  } else {
+    colors = { outer:'#64748b', mid:'#94a3b8', core:'#cbd5e1', tip:'#e2e8f0', glow:'rgba(100,116,139,0.5)' };
+    szClass = 'sz1'; heatClass = '';
+  }
+
+  wrap.className = `flame-wrap ${szClass}`;
+  card.className = `flame-card ${heatClass}`.trim();
+
+  // Appliquer les couleurs directement sur les paths SVG
+  const outer = wrap.querySelector('.flame-outer');
+  const mid   = wrap.querySelector('.flame-mid');
+  const core  = wrap.querySelector('.flame-core');
+  const tip   = wrap.querySelector('.flame-tip');
+  const glow  = wrap.querySelector('.flame-glow');
+  if (outer) outer.setAttribute('fill', colors.outer);
+  if (mid)   mid.setAttribute('fill', colors.mid);
+  if (core)  core.setAttribute('fill', colors.core);
+  if (tip)   tip.setAttribute('fill', colors.tip);
+  if (glow)  glow.style.background = `radial-gradient(ellipse, ${colors.glow} 0%, transparent 70%)`;
+
+  // Stats
+  const today = fmtDate(new Date());
+  const now = new Date();
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7)); weekStart.setHours(0,0,0,0);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+
+  const todayDone  = tasks.filter(t => t.date === today && t.status === 'done').length;
+  const todayTotal = tasks.filter(t => t.date === today && t.status !== 'deleted').length;
+  const weekDone   = tasks.filter(t => { if (!t.date) return false; const d = new Date(t.date); return d >= weekStart && d < weekEnd && t.status === 'done'; }).length;
+  const pctToday   = todayTotal > 0 ? Math.round(todayDone / todayTotal * 100) : 0;
+
   const doneDates = new Set(tasks.filter(t => t.status === 'done' && t.date).map(t => t.date));
-  let streak = 0;
-  let cursor = new Date();
+  let streak = 0; let cursor = new Date();
   if (!doneDates.has(fmtDate(cursor))) cursor.setDate(cursor.getDate() - 1);
   while (doneDates.has(fmtDate(cursor))) { streak++; cursor.setDate(cursor.getDate() - 1); }
-  numEl.textContent = `${streak} jour${streak > 1 ? 's' : ''}`;
-  if (flameEl) {
-    flameEl.classList.remove('lvl1','lvl2','lvl3');
-    if (streak >= 14) flameEl.classList.add('lvl3');
-    else if (streak >= 7) flameEl.classList.add('lvl2');
-    else if (streak >= 1) flameEl.classList.add('lvl1');
-  }
-  if (barEl) barEl.style.width = Math.min(100, (streak / 30) * 100) + '%';
+
+  const setText = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  setText('flame-streak-val', streak);
+  setText('flame-streak-sub', `jour${streak > 1 ? 's' : ''} consécutif${streak > 1 ? 's' : ''}`);
+  setText('flame-today-val', todayDone);
+  setText('flame-today-sub', `tâche${todayDone > 1 ? 's' : ''} complétée${todayDone > 1 ? 's' : ''} aujourd'hui`);
+  setText('flame-week-val', weekDone);
+  setText('flame-week-sub', `tâche${weekDone > 1 ? 's' : ''} cette semaine`);
+  setText('flame-pct-val', pctToday + '%');
+  setText('flame-pct-sub', todayTotal > 0 ? `sur ${todayTotal} tâche${todayTotal > 1 ? 's' : ''} du jour` : 'aucune tâche planifiée');
+  setText('flame-lvl-val', flameScore + '%');
+
+  if (!flameCarouselTimer) startFlameCarousel();
 }
+
+function startFlameCarousel() {
+  const slides = document.querySelectorAll('.flame-stat-slide');
+  const dots   = document.querySelectorAll('.flame-dot');
+  if (!slides.length) return;
+
+  // Swipe support
+  const stats = document.getElementById('flame-stats');
+  let touchStartX = 0;
+  if (stats && !stats._swipeSet) {
+    stats._swipeSet = true;
+    stats.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+    stats.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 40) goFlameSlide(dx < 0 ? 1 : -1);
+    });
+  }
+
+  flameCarouselTimer = setInterval(() => goFlameSlide(1), 3000);
+}
+
+function goFlameSlide(dir) {
+  const slides = document.querySelectorAll('.flame-stat-slide');
+  const dots   = document.querySelectorAll('.flame-dot');
+  if (!slides.length) return;
+  slides[flameCarouselIndex].classList.remove('active');
+  dots[flameCarouselIndex]?.classList.remove('active');
+  flameCarouselIndex = (flameCarouselIndex + dir + slides.length) % slides.length;
+  slides[flameCarouselIndex].classList.add('active');
+  dots[flameCarouselIndex]?.classList.add('active');
+}
+
+function spawnFlameParticles() {
+  const card = document.getElementById('flame-card');
+  if (!card) return;
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement('div');
+    p.style.cssText = `position:absolute;pointer-events:none;width:6px;height:6px;border-radius:50%;
+      background:${['#f97316','#fbbf24','#ef4444','#93c5fd'][Math.floor(Math.random()*4)]};
+      left:${20 + Math.random() * 40}px;bottom:${10 + Math.random() * 20}px;z-index:10;
+      animation:particleUp 0.8s ease forwards;`;
+    card.appendChild(p);
+    setTimeout(() => p.remove(), 800);
+  }
+}
+
+function renderStreak() { renderFlame(); } // compatibilité ancienne référence
 
 // Greeting : affiché 2x par jour (matin + soir), disparaît après 3 min
 let greetingShownToday = { morning: false, evening: false };
@@ -215,7 +382,7 @@ function renderMyDay() {
     .filter(t => t && t.status !== 'deleted');
 
   if (selectedTasks.length === 0) {
-    el.innerHTML = `<div class="my-day-empty">Aucune tâche choisie pour aujourd'hui — clique sur "Choisir" pour en sélectionner.</div>`;
+    el.innerHTML = '';
     return;
   }
   el.innerHTML = selectedTasks.map(t => `
@@ -274,7 +441,7 @@ function renderUpcomingTasks() {
     .slice(0, 2);
 
   if (upcoming.length === 0) {
-    el.innerHTML = `<div class="dash-empty-tasks"><div class="dash-empty-icon">☕</div><div class="dash-empty-txt">Aucune tâche à venir<br>Profite du moment !</div></div>`;
+    el.innerHTML = `<div style="padding:10px 4px;color:var(--text3);font-size:12px;text-align:center;">Aucune tâche à venir</div>`;
     return;
   }
 

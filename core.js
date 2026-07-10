@@ -30,35 +30,55 @@ const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 function updateAppHeight() {
   document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
+  const topbarEl = document.getElementById('topbar');
+  if (topbarEl) document.documentElement.style.setProperty('--topbar-h', topbarEl.offsetHeight + 'px');
 }
 updateAppHeight();
 window.addEventListener('resize', updateAppHeight);
 window.addEventListener('orientationchange', () => setTimeout(updateAppHeight, 100));
 
 
-//  IndexedDB (offline)
-let idb = null;
+// ══════════════════════════════════════════════════════════════════════════════
+//  INDEXEDDB — deux bases distinctes
+//
+//  trivo-display  : source d'affichage de l'app (offline, chargement rapide)
+//                   Stores : tasks | teams | memos | prefs | musicTracks
+//                   Purge à la déconnexion : tasks, teams, memos
+//                   Jamais touché : musicTracks, prefs (thème/design)
+//
+//  trivo-queue    : file d'attente vers Firebase uniquement
+//                   Stores : queue
+//                   Chaque entrée = une action (create/update/delete/recover/hard-delete)
+//                   Se vide après flush réussi vers Firebase
+//                   Nécessite une connexion pour flush
+// ══════════════════════════════════════════════════════════════════════════════
+
+let idb = null;        // trivo-display
+let idbQueue = null;   // trivo-queue
+
+// ── IDB Display ───────────────────────────────────────────────────────────────
 function openIDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('orgasync', 4);
+    const req = indexedDB.open('trivo-display', 1);
     req.onupgradeneeded = e => {
       const d = e.target.result;
-      if (!d.objectStoreNames.contains('tasks')) d.createObjectStore('tasks', { keyPath: 'id' });
-      if (!d.objectStoreNames.contains('teams')) d.createObjectStore('teams', { keyPath: 'id' });
-      if (!d.objectStoreNames.contains('prefs')) d.createObjectStore('prefs', { keyPath: 'key' });
+      if (!d.objectStoreNames.contains('tasks'))       d.createObjectStore('tasks',       { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('teams'))       d.createObjectStore('teams',       { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('memos'))       d.createObjectStore('memos',       { keyPath: 'id' });
+      if (!d.objectStoreNames.contains('prefs'))       d.createObjectStore('prefs',       { keyPath: 'key' });
       if (!d.objectStoreNames.contains('musicTracks')) d.createObjectStore('musicTracks', { keyPath: 'id' });
-      if (!d.objectStoreNames.contains('memos')) d.createObjectStore('memos', { keyPath: 'id' });
     };
     req.onsuccess = e => resolve(e.target.result);
-    req.onerror = () => reject(req.error);
+    req.onerror  = () => reject(req.error);
   });
 }
+
 async function idbGet(store, key) {
   return new Promise(resolve => {
-    const tx = idb.transaction(store, 'readonly');
+    const tx  = idb.transaction(store, 'readonly');
     const req = tx.objectStore(store).get(key);
     req.onsuccess = () => resolve(req.result);
-    req.onerror = () => resolve(null);
+    req.onerror   = () => resolve(null);
   });
 }
 async function idbPut(store, value) {
@@ -77,12 +97,87 @@ async function idbDelete(store, key) {
 }
 async function idbGetAll(store) {
   return new Promise(resolve => {
-    const tx = idb.transaction(store, 'readonly');
+    const tx  = idb.transaction(store, 'readonly');
     const req = tx.objectStore(store).getAll();
     req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => resolve([]);
+    req.onerror   = () => resolve([]);
   });
 }
+
+// Expose sur window — les autres scripts (music.js, sync.js, tasks.js…)
+// sont des fichiers séparés et ne peuvent pas accéder aux fonctions
+// locales de core.js sans ça.
+window.idbGet    = idbGet;
+window.idbPut    = idbPut;
+window.idbDelete = idbDelete;
+window.idbGetAll = idbGetAll;
+
+// ── IDB Queue ─────────────────────────────────────────────────────────────────
+function openIDBQueue() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('trivo-queue', 1);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      // Une seule store : queue
+      // Clé composite : `${collection}_${docId}` — une seule entrée par document
+      // (la dernière action écrase la précédente pour le même doc)
+      if (!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', { keyPath: 'id' });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror  = () => reject(req.error);
+  });
+}
+
+async function queueGet(key) {
+  return new Promise(resolve => {
+    const tx  = idbQueue.transaction('queue', 'readonly');
+    const req = tx.objectStore('queue').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => resolve(null);
+  });
+}
+async function queuePut(entry) {
+  return new Promise(resolve => {
+    const tx = idbQueue.transaction('queue', 'readwrite');
+    tx.objectStore('queue').put(entry);
+    tx.oncomplete = resolve;
+  });
+}
+async function queueDelete(key) {
+  return new Promise(resolve => {
+    const tx = idbQueue.transaction('queue', 'readwrite');
+    tx.objectStore('queue').delete(key);
+    tx.oncomplete = resolve;
+  });
+}
+async function queueGetAll() {
+  return new Promise(resolve => {
+    const tx  = idbQueue.transaction('queue', 'readonly');
+    const req = tx.objectStore('queue').getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror   = () => resolve([]);
+  });
+}
+
+// Ajoute ou remplace une entrée dans la queue
+// Une seule entrée par (collection + docId) — la dernière action gagne
+async function queuePush(type, collectionName, docId, data) {
+  const entry = {
+    id:         `${collectionName}_${docId}`,  // clé unique par document
+    type,                                       // 'create' | 'update' | 'delete' | 'recover' | 'hard-delete'
+    collection: collectionName,
+    docId,
+    data:       { ...data },
+    updatedAt:  Date.now()
+  };
+  await queuePut(entry);
+}
+
+// Expose sur window
+window.queuePush    = queuePush;
+window.queueGetAll  = queueGetAll;
+window.queueDelete  = queueDelete;
+window.queueGet     = queueGet;
 
 //  State
 let currentUser = null;
@@ -146,20 +241,26 @@ window.reloadForUpdate = () => {
 
 function runBoot() {
 (async () => {
-  idb = await openIDB();
+  // Ouvrir les deux bases en parallèle pour ne pas bloquer le boot
+  [idb, idbQueue] = await Promise.all([openIDB(), openIDBQueue()]);
   await loadPrefs();
   onAuthStateChanged(auth, async user => {
     if (user) {
       currentUser = user;
-      await loadUserProfile();
-      await loadMyDaySelection();
+      await loadUserProfile();       // IDB uniquement — instantané
+      await loadMyDaySelection();    // IDB uniquement — instantané
       showApp();
       startListeners();
+      syncUserProfileFromFirebase(); // Firebase — non-bloquant, en arrière-plan
       checkNotifPermission();
       setupFCM();
       resetMotivationForNewSession();
       resetGreetingForNewSession();
       setTimeout(maybeShowMotivationQuote, 600);
+      // Flamme vivante — charger le score et vérifier la décroissance journalière
+      if (typeof loadFlameScore === 'function') { loadFlameScore(); checkFlameDailyDecay(); }
+      if (typeof loadActivityData === 'function') loadActivityData();
+      if (typeof loadMotivationState === 'function') loadMotivationState();
     } else {
       currentUser = null;
       resetMotivationForNewSession();
@@ -215,6 +316,8 @@ function setTheme(t, save = true) {
   document.documentElement.setAttribute('data-theme', t);
   document.getElementById('theme-dark-btn')?.classList.toggle('active', t === 'dark');
   document.getElementById('theme-light-btn')?.classList.toggle('active', t === 'light');
+  document.getElementById('theme-cosmos-btn')?.classList.toggle('active', t === 'cosmos');
+  document.getElementById('theme-sunrise-btn')?.classList.toggle('active', t === 'sunrise');
   if (save) savePref('theme', t);
 }
 function toggleTheme() {
@@ -256,21 +359,47 @@ window.doLogin = async () => {
 };
 
 window.doRegister = async () => {
-  const pseudo = document.getElementById('reg-pseudo').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
-  const pwd = document.getElementById('reg-password').value;
-  const errEl = document.getElementById('register-error');
+  const pseudo    = document.getElementById('reg-pseudo').value.trim();
+  const username  = document.getElementById('reg-username').value.trim().toLowerCase();
+  const email     = document.getElementById('reg-email').value.trim();
+  const pwd       = document.getElementById('reg-password').value;
+  const errEl     = document.getElementById('register-error');
   errEl.textContent = '';
-  if (!pseudo || !email || !pwd) { errEl.textContent = 'Remplis tous les champs.'; return; }
+
+  if (!pseudo || !username || !email || !pwd) { errEl.textContent = 'Remplis tous les champs.'; return; }
+  if (/\s/.test(username)) { errEl.textContent = 'Le nom d\'utilisateur ne doit pas contenir d\'espace.'; return; }
+  if (username.length < 3) { errEl.textContent = 'Nom d\'utilisateur : 3 caractères min.'; return; }
   if (pwd.length < 6) { errEl.textContent = 'Mot de passe : 6 caractères min.'; return; }
+
+  let cred = null;
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+    // 1. Créer le compte Firebase Auth d'abord — l'utilisateur est maintenant
+    //    authentifié, ce qui permet la requête Firestore qui suit.
+    cred = await createUserWithEmailAndPassword(auth, email, pwd);
+
+    // 2. Vérifier l'unicité du username maintenant qu'on est authentifié
+    const usernameCheck = await getDocs(query(collection(db, 'users'), where('username', '==', username)));
+    if (!usernameCheck.empty) {
+      // Username pris — supprimer le compte Auth qu'on vient de créer et annuler
+      await cred.user.delete();
+      errEl.textContent = 'Ce nom d\'utilisateur est déjà utilisé.';
+      return;
+    }
+
+    // 3. Username libre — finaliser la création
     await updateProfile(cred.user, { displayName: pseudo });
     await setDoc(doc(db, 'users', cred.user.uid), {
-      pseudo, email, photoURL: '', createdAt: serverTimestamp(),
+      pseudo, username, email, photoURL: '', createdAt: serverTimestamp(),
       settings: { groupNotif: true, hidePseudo: false }
     });
-  } catch (e) { errEl.textContent = authError(e.code); }
+
+  } catch (e) {
+    // Si le compte Auth a été créé mais que la suite a échoué, on nettoie
+    if (cred?.user && e.code !== 'auth/email-already-in-use') {
+      await cred.user.delete().catch(() => {});
+    }
+    errEl.textContent = authError(e.code);
+  }
 };
 
 function authError(code) {
@@ -330,53 +459,150 @@ window.doForgotPassword = async () => {
   }
 };
 
-window.doLogout = async () => {
-  if (tasksUnsub) tasksUnsub();
-  if (teamsUnsub) teamsUnsub();
-  await purgeLocalDataOnLogout();
-  tasks = []; myTeams = [];
-  await signOut(auth);
+// ── Déconnexion sécurisée ────────────────────────────────────────────────────
+// 1. Ouvre le modal (jamais de déconnexion directe au clic)
+// 2. Vérifie la connexion — bloque immédiatement si hors ligne
+// 3. Réauthentifie avec le mot de passe Firebase
+// 4. Si correct : spinner → flush queue → purge IDB → signOut
+// 5. Si incorrect : message d'erreur, rien d'autre ne se passe
+
+window.openLogoutModal = () => {
+  document.getElementById('logout-password-input').value = '';
+  document.getElementById('logout-error-msg').style.display = 'none';
+  document.getElementById('logout-modal').classList.add('open');
+  setTimeout(() => document.getElementById('logout-password-input').focus(), 100);
+};
+
+function _showLogoutError(msg) {
+  const el = document.getElementById('logout-error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _setLogoutLoading(loading) {
+  document.getElementById('logout-confirm-label').style.display = loading ? 'none' : 'inline';
+  document.getElementById('logout-spinner').style.display = loading ? 'inline' : 'none';
+  document.getElementById('logout-confirm-btn').disabled = loading;
+  document.getElementById('logout-cancel-btn').disabled = loading;
+  document.getElementById('logout-password-input').disabled = loading;
+}
+
+window.confirmLogout = async () => {
+  document.getElementById('logout-error-msg').style.display = 'none';
+
+  // Vérification connexion AVANT toute tentative de mot de passe —
+  // évite le piège "code erroné forcé avant que le vrai fonctionne"
+  if (!navigator.onLine) {
+    _showLogoutError('Vérifiez votre connexion internet');
+    return;
+  }
+
+  const password = document.getElementById('logout-password-input').value;
+  if (!password) {
+    _showLogoutError('Mot de passe requis');
+    return;
+  }
+
+  _setLogoutLoading(true);
+
+  try {
+    const credential = EmailAuthProvider.credential(currentUser.email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+
+    // Mot de passe correct — flush la queue vers Firebase avant purge
+    if (navigator.onLine) await window.queueFlush();
+
+    if (tasksUnsub) tasksUnsub();
+    if (teamsUnsub) teamsUnsub();
+    if (memosUnsub) memosUnsub();
+
+    await purgeLocalDataOnLogout();
+    tasks = []; myTeams = []; memos = [];
+
+    document.getElementById('logout-modal').classList.remove('open');
+    await signOut(auth);
+
+  } catch (err) {
+    _setLogoutLoading(false);
+    if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+      _showLogoutError('Mot de passe incorrect');
+    } else if (err.code === 'auth/network-request-failed') {
+      _showLogoutError('Vérifiez votre connexion internet');
+    } else {
+      _showLogoutError('Une erreur est survenue');
+      console.error('Logout error:', err);
+    }
+  }
 };
 
 async function purgeLocalDataOnLogout() {
+  // Purge trivo-display : tasks, teams, memos
   const tasksStore = await idbGetAll('tasks');
   for (const t of tasksStore) await idbDelete('tasks', t.id);
 
   const teamsStore = await idbGetAll('teams');
   for (const t of teamsStore) await idbDelete('teams', t.id);
 
-  // musicTracks n'est PAS touché — la musique reste disponible après déconnexion
+  const memosStore = await idbGetAll('memos');
+  for (const m of memosStore) await idbDelete('memos', m.id);
+
+  // Purge trivo-queue : vider toutes les actions en attente
+  const queueStore = await queueGetAll();
+  for (const q of queueStore) await queueDelete(q.id);
+
+  // Prefs liées au compte — purgées pour éviter qu'un autre utilisateur
+  // du même appareil hérite des paramètres du compte précédent.
+  // Firebase reconstruit ces prefs au prochain login (syncUserProfileFromFirebase).
   await idbDelete('prefs', 'avatarBase64');
   await idbDelete('prefs', 'settings');
+  await idbDelete('prefs', 'accentColor');
   await idbDelete('prefs', 'myDaySelection');
-  // theme et accentColor sont conservés volontairement
+  // musicTracks et theme conservés volontairement — liés à l'appareil, pas au compte
 }
 
 //  User Profile 
 async function loadUserProfile() {
-  // 1. Charger la photo locale (instantané, fonctionne hors-ligne)
+  // Partie 1 — IDB uniquement (instantané, fonctionne hors-ligne)
+  // Bloquante : showApp() attend que le profil local soit chargé avant d'afficher
   try {
     const cachedAvatar = await idbGet('prefs', 'avatarBase64');
     if (cachedAvatar?.value) userProfile.photoURL = cachedAvatar.value;
   } catch(e) {}
+}
 
-  // 2. Synchroniser avec Firestore (peut écraser si plus récent côté cloud)
+async function syncUserProfileFromFirebase() {
+  // Partie 2 — Firebase (peut être lent ou indisponible)
+  // Non-bloquante : lancée en arrière-plan après showApp()
   try {
     const snap = await getDoc(doc(db, 'users', currentUser.uid));
     if (snap.exists()) {
       const data = snap.data();
       userProfile = { ...userProfile, ...data };
-      // Garder la base64 locale en priorité d'affichage si elle existe
       if (data.photoBase64) {
         userProfile.photoURL = data.photoBase64;
         await idbPut('prefs', { key: 'avatarBase64', value: data.photoBase64 });
-      } else if (userProfile.photoURL && !data.photoURL) {
-        // garde la version locale
       }
-      settings = { ...settings, ...data.settings };
+
+      // Remplacement complet — pas de fusion avec d'éventuelles valeurs
+      // résiduelles d'un compte précédent encore en mémoire JS.
+      settings = data.settings ? { ...data.settings } : { groupNotif: true, hidePseudo: false };
       await savePref('settings', settings);
+      // Charger la liste de blocage
+      userProfile.blocked = data.blocked || [];
+
+      // accentColor vit dans settings — on le restaure aussi dans son
+      // propre slot prefs pour que loadPrefs() le retrouve aux prochains boots.
+      if (settings.accentColor) {
+        await savePref('accentColor', settings.accentColor);
+        document.documentElement.setAttribute('data-accent', settings.accentColor === 'blue' ? '' : settings.accentColor);
+        document.querySelectorAll('.accent-dot').forEach(d => d.classList.toggle('selected', d.dataset.accent === settings.accentColor));
+      }
+
+      // Applique immédiatement les toggles (fullscreen, musique, notifs…) à l'UI
+      updateSettingsToggles();
+      renderUserUI();
     }
-  } catch (e) { console.warn('Profile:', e); }
+  } catch (e) { console.warn('Profile Firebase:', e); }
 }
 
 function renderUserUI() {
@@ -397,6 +623,11 @@ function renderUserUI() {
       ? `<img src="${photoURL}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
       : initials;
   }
+
+  // Afficher le nom d'utilisateur actuel dans l'item Mon compte
+  const unEl = document.getElementById('current-username-display');
+  if (unEl) unEl.textContent = userProfile.username ? `@${userProfile.username}` : 'Non défini';
+
   renderGroupAvatarGrid();
   updateSettingsToggles();
 }
@@ -461,7 +692,10 @@ window.toggleFullscreenMode = async () => {
 async function saveSettings() {
   updateSettingsToggles();
   await savePref('settings', settings);
-  if (currentUser) await updateDoc(doc(db, 'users', currentUser.uid), { settings }).catch(() => {});
+  if (currentUser) {
+    await queuePushMerge('update', 'users', currentUser.uid, { settings });
+    if (navigator.onLine) await window.queueFlush();
+  }
 }
 
 // ── Navigation ─────────────────────────────────────────────
@@ -492,11 +726,11 @@ window.goTo = (screen) => {
 function startListeners() {
   if (tasksUnsub) tasksUnsub();
 
-  // Affichage instantané depuis le cache local IndexedDB, avant même que
-  // Firestore ait eu le temps de répondre — évite l'écran vide au login.
+  // Affichage instantané depuis IDB — toujours, sans attendre Firebase
   idbGetAll('tasks').then(cached => {
-    if (tasks.length === 0 && cached.length > 0) {
-      tasks = cached.filter(t => t.uid === currentUser?.uid);
+    const myTasks = cached.filter(t => t.uid === currentUser?.uid);
+    if (myTasks.length > 0) {
+      tasks = myTasks;
       renderTaskList();
       if (taskViewMode === 'kanban') renderKanbanBoard();
       renderDashboard();
@@ -505,13 +739,42 @@ function startListeners() {
 
   const q = query(collection(db, 'tasks'), where('uid', '==', currentUser.uid));
   tasksUnsub = onSnapshot(q, async snap => {
-    tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    tasks.sort((a, b) => {
-      const ta = a.timestamp?.toMillis?.() || 0;
-      const tb = b.timestamp?.toMillis?.() || 0;
-      return tb - ta;
-    });
-    for (const t of tasks) await idbPut('tasks', t);
+    // ── Fusion Firebase → IDB display ──────────────────────────────────────
+    // Règle : Firebase ne remplace une entrée IDB que si son updatedAt
+    // est strictement plus récent. Cela évite qu'un snapshot Firebase
+    // "en retard" écrase une modification locale faite hors ligne.
+    for (const change of snap.docChanges()) {
+      const fbDoc  = { id: change.doc.id, ...change.doc.data() };
+
+      if (change.type === 'removed') {
+        // Suppression réelle côté Firebase (hard-delete)
+        await idbDelete('tasks', fbDoc.id);
+        tasks = tasks.filter(t => t.id !== fbDoc.id);
+        continue;
+      }
+
+      // Convertit le Timestamp Firebase en ms pour comparaison
+      const fbUpdatedAt = fbDoc.updatedAt?.toMillis?.() ?? fbDoc.updatedAt ?? 0;
+
+      // Cherche la version locale dans IDB
+      const local = await idbGet('tasks', fbDoc.id);
+      const localUpdatedAt = local?.updatedAt ?? 0;
+
+      if (fbUpdatedAt >= localUpdatedAt) {
+        // Firebase est plus récent (ou égal) → on accepte
+        await idbPut('tasks', { ...fbDoc, updatedAt: fbUpdatedAt });
+        // Met à jour le tableau en mémoire
+        const idx = tasks.findIndex(t => t.id === fbDoc.id);
+        const merged = { ...fbDoc, updatedAt: fbUpdatedAt };
+        if (idx >= 0) tasks[idx] = merged;
+        else tasks.push(merged);
+      }
+      // Si local plus récent → on ignore silencieusement ce snapshot pour ce doc
+    }
+
+    tasks.sort((a, b) => (b.timestamp?.toMillis?.() ?? b.timestamp ?? 0)
+                       - (a.timestamp?.toMillis?.() ?? a.timestamp ?? 0));
+
     renderTaskList();
     if (taskViewMode === 'kanban') renderKanbanBoard();
     renderDashboard();
@@ -531,6 +794,8 @@ function startListeners() {
     renderTeams();
     updateTeamsBadge();
     startTeamUnreadListeners();
+    // Précharge les profils des autres utilisateurs dans les DMs
+    if (typeof prefetchDMProfiles === 'function') prefetchDMProfiles();
   }, (err) => console.error('Erreur Firestore teams:', err));
 
   // Mémos : même pattern offline-first que les tâches.

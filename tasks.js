@@ -56,7 +56,7 @@ window.toggleTaskView = () => {
 function renderKanbanBoard() {
   const el = document.getElementById('kanban-board');
   if (!el) return;
-  let visible = tasks.filter(t => t.status !== 'deleted' && t.status !== 'missed' && t.status !== 'skipped');
+  let visible = tasks.filter(t => t.status !== 'deleted' && t.status !== 'missed');
   if (advancedFilters.list) visible = visible.filter(t => t.list === advancedFilters.list);
   if (advancedFilters.minPriority > 0) visible = visible.filter(t => (t.priority||0) >= advancedFilters.minPriority);
 
@@ -177,8 +177,8 @@ function taskHTML(t) {
   if (isParty) return partyTaskHTML(t, isDone, isExpanded);
 
   return `
-  <div class="task-card-premium compact fade-in ${isDone?'is-done':''}" style="--task-color:${color};">
-    <div class="task-card-glow" style="background:${hexToRgba(color,0.18)};"></div>
+  <div class="task-card-premium compact fade-in ${isDone?'is-done':''}" style="--task-color:${color}; background: linear-gradient(135deg, ${hexToRgba(color,0.85)} 0%, ${hexToRgba(color,0.55)} 100%); border-color: ${hexToRgba(color,0.3)};">
+    <div class="task-card-glow" style="display:none;"></div>
     <div class="task-card-row">
       <div class="task-check-premium ${isDone?'done':''}" style="--task-color:${color};">${isDone?'<i class="fa-solid fa-check"></i>':''}</div>
       <div class="task-body">
@@ -282,7 +282,12 @@ window.toggleSubtask = async (taskId, index) => {
   if (!t || !t.subtasks?.[index]) return;
   const subtasks = [...t.subtasks];
   subtasks[index] = { ...subtasks[index], done: !subtasks[index].done };
-  await updateDoc(doc(db,'tasks',taskId), { subtasks, updatedAt: serverTimestamp() });
+  const now = Date.now();
+  await idbPut('tasks', { ...t, subtasks, updatedAt: now });
+  tasks = tasks.map(x => x.id===taskId ? { ...x, subtasks, updatedAt: now } : x);
+  renderTaskList();
+  await queuePush('update', 'tasks', taskId, { subtasks });
+  if (navigator.onLine) await window.queueFlush();
 };
 
 
@@ -300,8 +305,27 @@ window.toggleTask = async (id) => {
   const t = tasks.find(x => x.id===id);
   if (!t) return;
   const newStatus = t.status==='done' ? 'pending' : 'done';
-  await updateDoc(doc(db,'tasks',id), { status: newStatus, updatedAt: serverTimestamp() });
-  showToast(newStatus==='done' ? ' Terminée !' : '↩️ Rouverte');
+  const now = Date.now();
+  await idbPut('tasks', { ...t, status: newStatus, updatedAt: now });
+  tasks = tasks.map(x => x.id===id ? { ...x, status: newStatus, updatedAt: now } : x);
+  renderTaskList();
+  if (taskViewMode === 'kanban') renderKanbanBoard();
+  renderDashboard();
+  await queuePush('update', 'tasks', id, { status: newStatus });
+  if (navigator.onLine) await window.queueFlush();
+  showToast(newStatus==='done' ? 'Terminée !' : 'Rouverte');
+  // Mise à jour de la flamme uniquement quand on marque comme terminé
+  if (newStatus === 'done' && typeof updateFlameOnTaskComplete === 'function') {
+    await updateFlameOnTaskComplete(id);
+  }
+  // Célébration si palier de streak atteint
+  if (newStatus === 'done' && typeof showTaskCompletionCelebration === 'function') {
+    const doneDates = new Set(tasks.filter(t => t.status === 'done' && t.date).map(t => t.date));
+    let streak = 0; let cursor = new Date();
+    if (!doneDates.has(cursor.toISOString().slice(0,10))) cursor.setDate(cursor.getDate()-1);
+    while (doneDates.has(cursor.toISOString().slice(0,10))) { streak++; cursor.setDate(cursor.getDate()-1); }
+    showTaskCompletionCelebration(streak);
+  }
   if (newStatus === 'done' && t.recurrence) await regenerateRecurringTask(t);
 };
 
@@ -366,7 +390,10 @@ async function regenerateRecurringTask(t) {
   );
   if (alreadyExists) return;
 
+  const now = Date.now();
+  const newId = _genId();
   const next = {
+    id: newId,
     title: t.title,
     list: t.list || null,
     priority: t.priority || 0,
@@ -381,42 +408,60 @@ async function regenerateRecurringTask(t) {
     subtasks: (t.subtasks||[]).map(s => ({ text: s.text, done: false })),
     status: 'pending',
     uid: currentUser.uid,
-    timestamp: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    timestamp: now,
+    updatedAt: now
   };
-  await addDoc(collection(db,'tasks'), next);
-  showToast(`🔁 Prochaine occurrence créée pour ${fmt(nextDate)}`);
+  await idbPut('tasks', next);
+  tasks.unshift(next);
+  await queuePush('create', 'tasks', newId, next);
+  if (navigator.onLine) await window.queueFlush();
+  showToast(`Prochaine occurrence créée pour ${fmt(nextDate)}`);
 }
 
 window.confirmDeleteTask = async (id) => {
   if (!confirm('Supprimer cette tâche ?')) return;
-  await deleteDoc(doc(db,'tasks',id));
-  showToast('🗑️ Tâche supprimée');
+  const now = Date.now();
+  const t = tasks.find(x => x.id === id);
+  if (t) await idbPut('tasks', { ...t, status: 'deleted', deletedAt: now, updatedAt: now });
+  tasks = tasks.map(x => x.id === id ? { ...x, status: 'deleted', deletedAt: now } : x);
+  renderTaskList();
+  if (taskViewMode === 'kanban') renderKanbanBoard();
+  renderDashboard();
+  await queuePush('delete', 'tasks', id, {});
+  if (navigator.onLine) await window.queueFlush();
+  showToast('Tâche déplacée dans la corbeille');
 };
 
 window.duplicateTask = async (id) => {
   const t = tasks.find(x => x.id === id);
   if (!t) return;
+  const now = Date.now();
+  const newId = _genId();
   const copy = {
+    id: newId,
     title: t.title,
     list: t.list || null,
     priority: t.priority || 0,
     content: t.content || '',
-    date: '', // la date est vidée : on évite de planifier 2 fois la même chose au même moment
+    date: '',
     time: t.time || '',
     hours: t.hours || 0,
     alarm: !!t.alarm,
     color: t.color || '#2563eb',
     recurrence: t.recurrence || null,
     tags: [...(t.tags||[])],
-    subtasks: (t.subtasks||[]).map(s => ({ text: s.text, done: false })), // sous-tâches remises à zéro
+    subtasks: (t.subtasks||[]).map(s => ({ text: s.text, done: false })),
     status: 'pending',
     uid: currentUser.uid,
-    timestamp: serverTimestamp(),
-    updatedAt: serverTimestamp()
+    timestamp: now,
+    updatedAt: now
   };
-  await addDoc(collection(db,'tasks'), copy);
-  showToast('📋 Tâche dupliquée — pense à lui donner une date');
+  await idbPut('tasks', copy);
+  tasks.unshift(copy);
+  renderTaskList();
+  await queuePush('create', 'tasks', newId, copy);
+  if (navigator.onLine) await window.queueFlush();
+  showToast('Tâche dupliquée — pense à lui donner une date');
 };
 
 // ── Task Modal ─────────────────────────────────────────────
@@ -433,6 +478,18 @@ const WEEKDAYS_FR = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','s
 function parseNaturalLanguageInput() {
   const input = document.getElementById('task-title-input');
   let text = input.value;
+
+  // Ne rien faire si le texte se termine par un espace — l'utilisateur
+  // est en train de saisir un nouveau mot, on ne doit pas interférer.
+  if (text.endsWith(' ')) return;
+
+  // Ne rien faire si aucun mot-clé déclencheur n'est présent
+  const hasKeyword = text.includes('#') || text.includes('@')
+    || /\b\d{1,2}h\d*\b/i.test(text)
+    || /\b(demain|aujourd'?hui|lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche|urgent)\b/i.test(text);
+  if (!hasKeyword) return;
+
+  const cursorPos = input.selectionStart;
 
   // Tag (#xxx) → ajouté à tempTaskTags s'il n'existe pas déjà
   const tagMatch = text.match(/#(\w+)/);
@@ -482,7 +539,7 @@ function parseNaturalLanguageInput() {
         const d = new Date();
         const todayIdx = d.getDay();
         let diff = (weekdayMatch - todayIdx + 7) % 7;
-        if (diff === 0) diff = 7; // "lundi" dit un autre jour, pas aujourd'hui s'il est déjà passé dans la phrase
+        if (diff === 0) diff = 7;
         d.setDate(d.getDate() + diff);
         dateField.value = fmtDate(d);
         text = text.replace(new RegExp(`\\b${WEEKDAYS_FR[weekdayMatch]}\\b`, 'i'), '').trim();
@@ -490,19 +547,19 @@ function parseNaturalLanguageInput() {
     }
   }
 
-  // Priorité (!urgent, !important)
+  // Priorité (urgent)
   if (/\burgent\b/i.test(text)) {
     document.querySelectorAll('.priority-opt').forEach(d => d.classList.toggle('selected', d.dataset.pri==='4'));
     text = text.replace(/\burgent\b/i, '').trim();
   }
 
-  // Nettoyage final des espaces multiples laissés par les retraits
-  text = text.replace(/\s{2,}/g, ' ').trim();
-  if (text !== input.value) {
-    const cursorPos = input.selectionStart;
-    input.value = text;
-    // On replace le curseur à la fin pour ne pas gêner la saisie continue
-    input.setSelectionRange(text.length, text.length);
+  // Nettoyage des espaces multiples — seulement si le texte a changé
+  const cleaned = text.replace(/\s{2,}/g, ' ').trim();
+  if (cleaned !== input.value) {
+    input.value = cleaned;
+    // Replacement du curseur sans dépasser la longueur du texte nettoyé
+    const newPos = Math.min(cursorPos, cleaned.length);
+    input.setSelectionRange(newPos, newPos);
   }
 }
 
@@ -703,6 +760,11 @@ window.saveTask = async () => {
   titleInput.classList.remove('error');
   const h = parseInt(document.getElementById('task-hours-input').value) || 0;
   const m = parseInt(document.getElementById('task-minutes-input').value) || 0;
+  const now = Date.now();
+
+  // Capturer editingTaskId AVANT closeTaskModal qui le remet à null
+  const taskIdToEdit = editingTaskId;
+
   const data = {
     title,
     list: document.getElementById('task-list-input').value.trim() || null,
@@ -710,7 +772,7 @@ window.saveTask = async () => {
     content: document.getElementById('task-content-input').value.trim(),
     date: document.getElementById('task-date-input').value,
     time: document.getElementById('task-time-input').value,
-    hours: Math.round((h + m/60) * 100) / 100, // ex: 1h30 -> 1.5 (gardé en heures décimales pour le calcul Pomodoro existant)
+    hours: Math.round((h + m/60) * 100) / 100,
     alarm: document.getElementById('alarm-toggle').classList.contains('on'),
     reminderVeille: document.getElementById('reminder-veille-toggle').classList.contains('on'),
     reminderRepeat: document.getElementById('reminder-repeat-toggle').classList.contains('on'),
@@ -719,25 +781,61 @@ window.saveTask = async () => {
     tags: [...tempTaskTags],
     subtasks: tempSubtasks.map(s => ({...s})),
     uid: currentUser.uid,
-    updatedAt: serverTimestamp()
+    updatedAt: now
   };
-  if (editingTaskId) {
-    await updateDoc(doc(db,'tasks',editingTaskId), data);
-    showToast(' Tâche modifiée');
-  } else {
-    data.status = 'pending';
-    data.timestamp = serverTimestamp();
-    await addDoc(collection(db,'tasks'), data);
-    showToast(' Tâche ajoutée');
-  }
+
+  // Fermer le modal immédiatement — avant tout await
   closeTaskModal();
+
+  if (taskIdToEdit) {
+    const existing = tasks.find(x => x.id === taskIdToEdit) || {};
+    const updated = { ...existing, ...data, id: taskIdToEdit };
+    await idbPut('tasks', updated);
+    tasks = tasks.map(x => x.id === taskIdToEdit ? updated : x);
+    renderTaskList();
+    if (taskViewMode === 'kanban') renderKanbanBoard();
+    renderDashboard();
+    await queuePush('update', 'tasks', taskIdToEdit, data);
+    if (navigator.onLine) await window.queueFlush();
+    showToast('Tâche modifiée');
+
+  } else {
+    const newId = _genId();
+    const newTask = { ...data, id: newId, status: 'pending', timestamp: now };
+    await idbPut('tasks', newTask);
+    tasks.unshift(newTask);
+    renderTaskList();
+    if (taskViewMode === 'kanban') renderKanbanBoard();
+    renderDashboard();
+    await queuePush('create', 'tasks', newId, newTask);
+    if (navigator.onLine) await window.queueFlush();
+    showToast('Tâche ajoutée');
+  }
 };
+
+// Génère un id unique côté client (22 chars, URL-safe)
+function _genId() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  const arr = new Uint8Array(22);
+  crypto.getRandomValues(arr);
+  arr.forEach(b => id += chars[b % chars.length]);
+  return id;
+}
 
 window.deleteCurrentTask = async () => {
   if (!editingTaskId) return;
-  await deleteDoc(doc(db,'tasks',editingTaskId));
+  const now = Date.now();
+  const t = tasks.find(x => x.id === editingTaskId);
+  if (t) await idbPut('tasks', { ...t, status: 'deleted', deletedAt: now, updatedAt: now });
+  tasks = tasks.map(x => x.id === editingTaskId ? { ...x, status: 'deleted', deletedAt: now } : x);
   closeTaskModal();
-  showToast('🗑️ Tâche supprimée');
+  renderTaskList();
+  if (taskViewMode === 'kanban') renderKanbanBoard();
+  renderDashboard();
+  await queuePush('delete', 'tasks', editingTaskId, {});
+  if (navigator.onLine) await window.queueFlush();
+  showToast('Tâche déplacée dans la corbeille');
 };
 
 // ── Alarms ─────────────────────────────────────────────────

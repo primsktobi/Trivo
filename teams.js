@@ -1,20 +1,65 @@
 let teamLastSeen = {}; 
 let teamLastMessageTime = {}; 
+let dmProfileCache = {}; // cache des profils pour les DMs {uid: {pseudo, photoURL}}
+
+// Précharge les profils des autres utilisateurs dans les DMs
+async function prefetchDMProfiles() {
+  const dmTeams = myTeams.filter(t => t.type === 'dm');
+  for (const team of dmTeams) {
+    const other = team.members?.find(m => m.uid !== currentUser.uid);
+    if (!other?.uid || dmProfileCache[other.uid]) continue;
+    try {
+      const snap = await getDoc(doc(db, 'users', other.uid));
+      if (snap.exists()) {
+        const d = snap.data();
+        dmProfileCache[other.uid] = {
+          pseudo: d.pseudo || d.username || '?',
+          photoURL: d.photoBase64 || d.photoURL || ''
+        };
+      }
+    } catch(e) {}
+  }
+  renderTeams();
+}
 
 function renderTeams() {
   const el = document.getElementById('teams-list');
   if (!el) return;
-  if (myTeams.length===0) {
-    el.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Aucune équipe</div><div class="empty-sub">Crée ou rejoins une équipe</div></div>`;
+  if (myTeams.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Aucune équipe</div><div class="empty-sub">Crée ou rejoins une équipe</div></div>`;
     return;
   }
   el.innerHTML = myTeams.map(team => {
-    const cnt = team.memberIds?.length||0;
-    const pend = team.pending?.length||0;
-    const isOwner = team.ownerId===currentUser.uid;
+    const cnt = team.memberIds?.length || 0;
+    const pend = team.pending?.length || 0;
+    const isOwner = team.ownerId === currentUser.uid;
     const lastMsg = teamLastMessageTime[team.id] || 0;
     const lastSeen = teamLastSeen[team.id] || 0;
     const hasUnread = lastMsg > lastSeen;
+
+    // DM — afficher le pseudo et la photo à jour depuis le cache
+    if (team.type === 'dm') {
+      const other = team.members?.find(m => m.uid !== currentUser.uid);
+      const cached = other?.uid ? dmProfileCache[other.uid] : null;
+      const otherName = cached?.pseudo || other?.pseudo || '?';
+      const otherPhoto = cached?.photoURL || other?.photoURL || '';
+      const initials = otherName.slice(0, 2).toUpperCase();
+      const avatarHtml = otherPhoto
+        ? `<img src="${otherPhoto}" style="width:42px;height:42px;border-radius:50%;object-fit:cover;">`
+        : `<div class="team-avatar">${initials}</div>`;
+      return `<div class="team-card fade-in" onclick="openTeamDetail('${team.id}')" style="position:relative;">
+        ${hasUnread ? '<span class="nav-dot" style="position:absolute;top:10px;right:10px;"></span>' : ''}
+        <div class="team-header">
+          ${avatarHtml}
+          <div>
+            <div class="team-name">${escHtml(otherName)}</div>
+            <div class="team-id" style="color:var(--text3);font-size:12px;">Message privé</div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // Groupe standard
     return `<div class="team-card fade-in" onclick="openTeamDetail('${team.id}')" style="position:relative;">
       ${hasUnread ? '<span class="nav-dot" style="position:absolute;top:10px;right:10px;"></span>' : ''}
       <div class="team-header">
@@ -25,8 +70,8 @@ function renderTeams() {
           <div class="team-members">👤 ${cnt} membre${cnt>1?'s':''}</div>
         </div>
         <div style="margin-left:auto;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
-          ${isOwner?'<span class="badge badge-blue">Admin</span>':'<span class="badge badge-green">Membre</span>'}
-          ${pend>0?`<span class="badge badge-orange">⏳ ${pend}</span>`:''}
+          ${isOwner ? '<span class="badge badge-blue">Admin</span>' : '<span class="badge badge-green">Membre</span>'}
+          ${pend > 0 ? `<span class="badge badge-orange">⏳ ${pend}</span>` : ''}
         </div>
       </div>
     </div>`;
@@ -62,22 +107,41 @@ function startTeamUnreadListeners() {
   });
 }
 
+window.openDM = () => {
+  teamMode = 'dm';
+  document.getElementById('team-modal-title').textContent = 'Nouveau message';
+  document.getElementById('team-name-label').textContent = 'Nom d\'utilisateur';
+  document.getElementById('team-name-input').placeholder = 'Rechercher par nom d\'utilisateur';
+  document.getElementById('team-name-input').value = '';
+  document.getElementById('team-name-input').style.display = 'block';
+  document.getElementById('join-id-wrap').style.display = 'none';
+  document.getElementById('dm-results-wrap').style.display = 'none';
+  document.getElementById('dm-results-list').innerHTML = '';
+  document.getElementById('team-modal-action-btn').textContent = 'Rechercher';
+  document.getElementById('team-modal').classList.add('open');
+};
+
 window.openCreateTeam = () => {
-  teamMode='create';
+  teamMode = 'create';
   document.getElementById('team-modal-title').textContent = 'Créer une équipe';
+  document.getElementById('team-name-label').textContent = 'Nom de l\'équipe';
+  document.getElementById('team-name-input').placeholder = 'Ex: Groupe de révision';
   document.getElementById('team-modal-action-btn').textContent = 'Créer';
   document.getElementById('team-name-input').value = '';
   document.getElementById('team-name-input').style.display = 'block';
   document.getElementById('join-id-wrap').style.display = 'none';
+  document.getElementById('dm-results-wrap').style.display = 'none';
   document.getElementById('team-modal').classList.add('open');
 };
 
 window.openJoinTeam = () => {
-  teamMode='join';
+  teamMode = 'join';
   document.getElementById('team-modal-title').textContent = 'Rejoindre une équipe';
+  document.getElementById('team-name-label').textContent = 'Nom de l\'équipe';
   document.getElementById('team-modal-action-btn').textContent = 'Envoyer la demande';
   document.getElementById('team-name-input').style.display = 'none';
   document.getElementById('join-id-wrap').style.display = 'block';
+  document.getElementById('dm-results-wrap').style.display = 'none';
   document.getElementById('team-join-id-input').value = '';
   document.getElementById('team-modal').classList.add('open');
 };
@@ -85,35 +149,114 @@ window.openJoinTeam = () => {
 window.closeTeamModal = () => {
   document.getElementById('team-modal').classList.remove('open');
   document.getElementById('team-name-input').style.display = 'block';
+  document.getElementById('dm-results-wrap').style.display = 'none';
+  document.getElementById('dm-results-list').innerHTML = '';
 };
 
 window.confirmTeamAction = async () => {
-  if (teamMode==='create') {
+  if (teamMode === 'dm') {
+    const search = document.getElementById('team-name-input').value.trim().toLowerCase();
+    if (!search) { showToast('Entre un nom d\'utilisateur'); return; }
+
+    // Recherche dans users par username — contient la valeur saisie
+    const snap = await getDocs(query(collection(db, 'users'), where('username', '>=', search), where('username', '<=', search + '\uf8ff')));
+    const results = snap.docs
+      .map(d => ({ uid: d.id, ...d.data() }))
+      .filter(u => u.uid !== currentUser.uid); // exclure soi-même
+
+    const listEl = document.getElementById('dm-results-list');
+    document.getElementById('dm-results-wrap').style.display = 'block';
+
+    if (results.length === 0) {
+      listEl.innerHTML = `<div style="padding:12px;color:var(--text3);font-size:13px;text-align:center;">Aucun résultat</div>`;
+      return;
+    }
+
+    listEl.innerHTML = results.map(u => {
+      const photo = u.photoURL || u.photoBase64 || '';
+      const initials = (u.pseudo || u.username || '?').slice(0, 2).toUpperCase();
+      const avatar = photo
+        ? `<img src="${photo}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">`
+        : `<div style="width:40px;height:40px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${initials}</div>`;
+      return `<div onclick="startDM('${u.uid}')" style="display:flex;align-items:center;gap:12px;padding:10px 4px;cursor:pointer;border-bottom:1px solid var(--border);">
+        ${avatar}
+        <div>
+          <div style="font-weight:600;font-size:14px;">${escHtml(u.pseudo || u.username)}</div>
+          <div style="font-size:12px;color:var(--text3);">@${escHtml(u.username)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Changer le bouton en "Fermer" après les résultats
+    document.getElementById('team-modal-action-btn').textContent = 'Rechercher encore';
+    return;
+  }
+
+  if (teamMode === 'create') {
     const name = document.getElementById('team-name-input').value.trim();
-    if (!name) { showToast('⚠️ Donne un nom à ton équipe'); return; }
+    if (!name) { showToast('Donne un nom à ton équipe'); return; }
     const ref2 = await addDoc(collection(db,'teams'), {
       name, ownerId: currentUser.uid,
       memberIds: [currentUser.uid],
-      members: [{ uid: currentUser.uid, pseudo: userProfile.pseudo||currentUser.displayName||'?', photoURL: userProfile.photoURL||'', groupAvatar: userProfile.groupAvatar||'ga1' }],
+      members: [{ uid: currentUser.uid, pseudo: userProfile.pseudo||currentUser.displayName||'?', photoURL: userProfile.photoURL||'', groupAvatar: userProfile.groupAvatar||'ga1', joinedAt: Date.now() }],
       pending: [], allowIdCopy: true, createdAt: serverTimestamp()
     });
-    showToast('🎉 Équipe créée !');
+    showToast('Équipe créée');
     closeTeamModal();
     setTimeout(() => openTeamDetail(ref2.id), 400);
+
   } else {
     const teamId = document.getElementById('team-join-id-input').value.trim();
-    if (!teamId) { showToast('⚠️ Colle l\'ID de l\'équipe'); return; }
+    if (!teamId) { showToast('Colle l\'ID de l\'équipe'); return; }
     const snap = await getDoc(doc(db,'teams',teamId));
-    if (!snap.exists()) { showToast('❌ Équipe introuvable'); return; }
+    if (!snap.exists()) { showToast('Équipe introuvable'); return; }
     const team = snap.data();
     if (team.memberIds?.includes(currentUser.uid)) { showToast('Tu es déjà dans cette équipe'); return; }
     if (team.pending?.find(p => p.uid===currentUser.uid)) { showToast('Demande déjà envoyée'); return; }
     await updateDoc(doc(db,'teams',teamId), {
       pending: [...(team.pending||[]), { uid: currentUser.uid, pseudo: userProfile.pseudo||currentUser.displayName, photoURL: userProfile.photoURL||'', groupAvatar: userProfile.groupAvatar||'ga1' }]
     });
-    showToast('Demande envoyée !');
+    showToast('Demande envoyée');
     closeTeamModal();
   }
+};
+
+window.startDM = async (otherUid) => {
+  // Vérifier si un DM existe déjà entre les deux utilisateurs
+  const existing = myTeams.find(t =>
+    t.type === 'dm' &&
+    t.memberIds?.includes(otherUid) &&
+    t.memberIds?.includes(currentUser.uid) &&
+    t.memberIds?.length === 2
+  );
+
+  if (existing) {
+    closeTeamModal();
+    setTimeout(() => openTeamDetail(existing.id), 400);
+    return;
+  }
+
+  // Récupérer le profil de l'autre personne
+  const otherSnap = await getDoc(doc(db, 'users', otherUid));
+  if (!otherSnap.exists()) { showToast('Utilisateur introuvable'); return; }
+  const other = otherSnap.data();
+
+  // Créer le DM — même structure qu'un groupe mais type:'dm', sans pending ni allowIdCopy
+  const ref2 = await addDoc(collection(db, 'teams'), {
+    type: 'dm',
+    name: '',  // pas de nom fixe — chaque côté affiche le pseudo de l'autre
+    ownerId: currentUser.uid,
+    memberIds: [currentUser.uid, otherUid],
+    members: [
+      { uid: currentUser.uid, pseudo: userProfile.pseudo||currentUser.displayName||'?', photoURL: userProfile.photoURL||'', groupAvatar: userProfile.groupAvatar||'ga1', joinedAt: Date.now() },
+      { uid: otherUid, pseudo: other.pseudo||other.username||'?', photoURL: other.photoURL||other.photoBase64||'', groupAvatar: other.groupAvatar||'ga1', joinedAt: Date.now() }
+    ],
+    pending: [],
+    createdAt: serverTimestamp()
+  });
+
+  closeTeamModal();
+  setTimeout(() => openTeamDetail(ref2.id), 400);
 };
 
 let teamItemsUnsub = null;
@@ -125,19 +268,65 @@ window.openTeamDetail = async (teamId) => {
   if (!snap.exists()) return;
   const team = { id: snap.id, ...snap.data() };
 
-  document.getElementById('team-detail-name').textContent = team.name;
-  document.getElementById('team-chat-avatar').textContent = (team.name||'??').slice(0,2).toUpperCase();
-  document.getElementById('team-chat-members-count').textContent = `${team.memberIds?.length||0} membre${(team.memberIds?.length||0)>1?'s':''}`;
-  document.getElementById('team-detail-id').textContent = team.id;
+  if (team.type === 'dm') {
+    // DM — lire le profil actuel de l'autre depuis users/{uid} pour avoir
+    // le pseudo et la photo à jour (pas figés au moment de la création du DM)
+    const other = team.members?.find(m => m.uid !== currentUser.uid);
+    let otherName = other?.pseudo || '?';
+    let otherPhoto = other?.photoURL || '';
+    try {
+      const otherSnap = await getDoc(doc(db, 'users', other.uid));
+      if (otherSnap.exists()) {
+        const otherData = otherSnap.data();
+        otherName = otherData.pseudo || otherData.username || otherName;
+        otherPhoto = otherData.photoBase64 || otherData.photoURL || otherPhoto;
+      }
+    } catch(e) {}
+    const initials = otherName.slice(0, 2).toUpperCase();
+    document.getElementById('team-detail-name').textContent = otherName;
+    const chatAvatar = document.getElementById('team-chat-avatar');
+    if (otherPhoto) {
+      chatAvatar.innerHTML = `<img src="${otherPhoto}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    } else {
+      chatAvatar.textContent = initials;
+    }
+    document.getElementById('team-chat-members-count').textContent = 'Message privé';
+    document.getElementById('team-detail-id').textContent = team.id;
+
+    // Vérifier si l'autre personne est bloquée — désactiver l'input si oui
+    const blocked = userProfile.blocked || [];
+    const block = blocked.find(b => b.uid === other?.uid);
+    const isBlocked = block && (!block.unblockedAt || Date.now() < block.unblockedAt);
+    const chatInput = document.getElementById('team-chat-input');
+    const sendBtn = document.getElementById('team-chat-send-btn');
+    if (chatInput) {
+      chatInput.disabled = isBlocked;
+      chatInput.placeholder = isBlocked ? `Vous avez bloqué ${otherName}` : 'Écrire un message…';
+    }
+    if (sendBtn) sendBtn.disabled = isBlocked;
+  } else {
+    document.getElementById('team-detail-name').textContent = team.name;
+    document.getElementById('team-chat-avatar').textContent = (team.name||'??').slice(0,2).toUpperCase();
+    document.getElementById('team-chat-members-count').textContent = `${team.memberIds?.length||0} membre${(team.memberIds?.length||0)>1?'s':''}`;
+    document.getElementById('team-detail-id').textContent = team.id;
+    // Réactiver l'input pour les groupes normaux
+    const chatInput = document.getElementById('team-chat-input');
+    const sendBtn = document.getElementById('team-chat-send-btn');
+    if (chatInput) { chatInput.disabled = false; chatInput.placeholder = 'Écrire un message…'; }
+    if (sendBtn) sendBtn.disabled = false;
+  }
 
   renderTeamMembersInfo(team);
 
-  // Gestion de la permission "copier l'ID"
+  // Gestion de la permission "copier l'ID" — masquée pour les DMs
   const isOwner = team.ownerId === currentUser.uid;
-  const allowCopy = team.allowIdCopy !== false; // true par défaut
+  const allowCopy = team.allowIdCopy !== false;
   const ownerToggleRow = document.getElementById('owner-id-copy-toggle-row');
   const copyBtn = document.getElementById('copy-id-btn');
-  if (isOwner) {
+  if (team.type === 'dm') {
+    ownerToggleRow.style.display = 'none';
+    copyBtn.style.display = 'none';
+  } else if (isOwner) {
     ownerToggleRow.style.display = 'flex';
     document.getElementById('allow-id-copy-toggle').classList.toggle('on', allowCopy);
     copyBtn.style.display = 'block';
@@ -198,17 +387,65 @@ function groupAvatarHTML(avatarId, pseudo, size = 36) {
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${a.grad};display:flex;align-items:center;justify-content:center;color:#fff;font-size:${size*0.42}px;flex-shrink:0;"><i class="fa-solid ${a.icon}"></i></div>`;
 }
 
-window.openTeamInfoModal = () => document.getElementById('team-info-modal').classList.add('open');
+window.openTeamInfoModal = async () => {
+  const snap = await getDoc(doc(db, 'teams', currentTeamId));
+  if (!snap.exists()) return;
+  const team = { id: snap.id, ...snap.data() };
+  const isDM = team.type === 'dm';
+
+  document.getElementById('team-group-info').style.display = isDM ? 'none' : 'block';
+
+  if (isDM) {
+    const other = team.members?.find(m => m.uid !== currentUser.uid);
+    const otherName = other?.pseudo || '?';
+    document.getElementById('team-info-title').textContent = otherName;
+
+    // Vérifier l'état du blocage actuel
+    const blocked = userProfile.blocked || [];
+    const block = blocked.find(b => b.uid === other?.uid);
+    const isBlocked = block && (!block.unblockedAt || Date.now() < block.unblockedAt);
+
+    if (isBlocked) {
+      document.getElementById('team-leave-btn').textContent = `Débloquer ${otherName}`;
+      document.getElementById('team-leave-btn').onclick = () => unblockDMUser(other?.uid, otherName);
+    } else {
+      document.getElementById('team-leave-btn').textContent = `Bloquer ${otherName}`;
+      document.getElementById('team-leave-btn').onclick = () => blockDMUser(other?.uid, otherName);
+    }
+  } else {
+    document.getElementById('team-info-title').textContent = 'Informations';
+    document.getElementById('team-leave-btn').textContent = 'Quitter l\'équipe';
+    document.getElementById('team-leave-btn').onclick = leaveTeam;
+    renderTeamMembersInfo(team);
+  }
+
+  document.getElementById('team-info-modal').classList.add('open');
+};
 
 // ── Chat listener : messages + tâches mélangés, triés par date ──
+// Cache de la dernière conversation ouverte — garde les messages en mémoire
+// pour éviter la latence au retour dans un chat récemment visité
+let lastChatCache = { teamId: null, msgs: [], tsks: [] };
+
 function startTeamChatListener(teamId) {
+  // Si c'est la même conversation que la dernière ouverte, afficher
+  // immédiatement depuis le cache pendant que le listener se réabonne
+  if (lastChatCache.teamId === teamId && (lastChatCache.msgs.length || lastChatCache.tsks.length)) {
+    const cached = [...lastChatCache.msgs, ...lastChatCache.tsks];
+    cached.sort((a,b) => (a.timestamp?.toMillis?.()||0) - (b.timestamp?.toMillis?.()||0));
+    teamChatCache = cached;
+    renderTeamChat(cached);
+  }
+
   if (teamItemsUnsub) teamItemsUnsub();
-  let msgs = [], tsks = [];
+  let msgs = [...lastChatCache.msgs], tsks = [...lastChatCache.tsks];
 
   const renderMerged = () => {
     const merged = [...msgs, ...tsks];
     merged.sort((a,b) => (a.timestamp?.toMillis?.()||0) - (b.timestamp?.toMillis?.()||0));
     teamChatCache = merged;
+    // Sauvegarder dans le cache de la dernière conversation
+    lastChatCache = { teamId, msgs: [...msgs], tsks: [...tsks] };
     renderTeamChat(merged);
   };
 
@@ -226,14 +463,22 @@ function startTeamChatListener(teamId) {
     renderMerged();
   }, e => console.error('chat tasks:', e));
 
-  // Le statut "en train d'écrire" ne touche plus jamais à la liste des messages —
-  // seul un petit bloc dédié (typing-indicator-slot) est mis à jour, pour éviter
-  // de redessiner tout le fil (et donc de faire "sauter" l'écran) à chaque frappe.
   const unsub3 = onSnapshot(typingQ, snap => {
     const now = Date.now();
+    const blocked = userProfile.blocked || [];
     const typingUsers = snap.docs
       .map(d => d.data())
-      .filter(t => t.uid !== currentUser.uid && (now - (t.updatedAt?.toMillis?.() || 0)) < 5000);
+      .filter(t => {
+        if (t.uid === currentUser.uid) return false;
+        if ((now - (t.updatedAt?.toMillis?.() || 0)) >= 5000) return false;
+        // Masquer l'indicateur si l'auteur est bloqué
+        const block = blocked.find(b => b.uid === t.uid);
+        if (block) {
+          const unblockedAt = block.unblockedAt || Infinity;
+          if (now >= block.blockedAt && now < unblockedAt) return false;
+        }
+        return true;
+      });
     renderTypingIndicator(typingUsers);
   }, e => console.error('typing status:', e));
 
@@ -271,16 +516,15 @@ window.autoGrowChatInput = (el) => {
 function renderTeamChat(items) {
   const feed = document.getElementById('team-chat-feed');
   if (!feed) return;
-
-  // On ne force le scroll automatique que si l'utilisateur était déjà proche du bas
-  // (évite que le feed "saute" pendant qu'on lit plus haut ou qu'on tape un message)
   const wasNearBottom = (feed.scrollHeight - feed.scrollTop - feed.clientHeight) < 80;
+  const currentTeam = myTeams.find(t => t.id === currentTeamId);
+  const isDM = currentTeam?.type === 'dm';
 
   if (items.length === 0) {
     feed.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fa-solid fa-comments"></i></div><div class="empty-title">Aucun message ni tâche</div><div class="empty-sub">Écris un message ou ajoute une tâche avec +</div></div><div id="typing-indicator-slot"></div>`;
     return;
   }
-  feed.innerHTML = items.map(it => it.kind === 'task' ? teamTaskChatHTML(it) : teamMessageHTML(it)).join('') + '<div id="typing-indicator-slot"></div>';
+  feed.innerHTML = items.map(it => it.kind === 'task' ? teamTaskChatHTML(it, isDM) : teamMessageHTML(it, isDM)).join('') + '<div id="typing-indicator-slot"></div>';
   if (wasNearBottom) {
     requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
   }
@@ -298,11 +542,24 @@ function renderTypingIndicator(typingUsers) {
   if (wasNearBottom && feed) feed.scrollTop = feed.scrollHeight;
 }
 
-function teamMessageHTML(m) {
+function teamMessageHTML(m, isDM) {
   const mine = m.uid === currentUser.uid;
+
+  // Filtrage blocage — si l'auteur est bloqué ET le message a été envoyé
+  // pendant la période de blocage, on ne l'affiche jamais
+  if (!mine && isDM) {
+    const blocked = userProfile.blocked || [];
+    const block = blocked.find(b => b.uid === m.uid);
+    if (block) {
+      const msgTs = m.timestamp?.toMillis?.() || 0;
+      const unblockedAt = block.unblockedAt || Infinity;
+      if (msgTs >= block.blockedAt && msgTs < unblockedAt) return '';
+    }
+  }
+
   return `
   <div class="chat-msg ${mine?'mine':''}">
-    ${!mine ? `<div class="chat-msg-author">${escHtml(m.pseudo||'?')}</div>` : ''}
+    ${!mine && !isDM ? `<div class="chat-msg-author">${escHtml(m.pseudo||'?')}</div>` : ''}
     <div>${escHtml(m.text)}</div>
     <div class="chat-msg-time">${fmtTime(m.timestamp)}</div>
   </div>`;
@@ -310,7 +567,18 @@ function teamMessageHTML(m) {
 
 const REACTION_EMOJIS = ['👍','👎','☝️','😎','😡'];
 
-function teamTaskChatHTML(t) {
+function teamTaskChatHTML(t, isDM) {
+  // Filtrage blocage sur les tâches — même logique que les messages
+  if (isDM && t.creatorUid !== currentUser.uid) {
+    const blocked = userProfile.blocked || [];
+    const block = blocked.find(b => b.uid === t.creatorUid);
+    if (block) {
+      const taskTs = t.timestamp?.toMillis?.() || 0;
+      const unblockedAt = block.unblockedAt || Infinity;
+      if (taskTs >= block.blockedAt && taskTs < unblockedAt) return '';
+    }
+  }
+
   const color = t.color || '#2563eb';
   const reactions = t.reactions || {};
   const reactionsHtml = Object.entries(reactions).filter(([,uids]) => uids.length>0).map(([emoji, uids]) => {
@@ -326,10 +594,10 @@ function teamTaskChatHTML(t) {
       ${t.content?`<div class="chat-task-content">${escHtml(t.content)}</div>`:''}
       <div class="task-meta">
         ${t.date?`<span class="task-tag">📅 ${fmt(t.date)}${t.time?' '+t.time:''}</span>`:''}
-        <span class="task-tag">👤 ${escHtml(t.creatorPseudo||'?')}</span>
+        ${!isDM?`<span class="task-tag">👤 ${escHtml(t.creatorPseudo||'?')}</span>`:''}
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px;">
-        Créé ${fmtTs(t.timestamp)}${t.updatedAt ? ' · Modifié '+fmtTs(t.updatedAt)+(t.lastModifiedBy?' par '+escHtml(t.lastModifiedBy):'') : ''}
+        Créé ${fmtTs(t.timestamp)}${t.updatedAt ? ' · Modifié '+fmtTs(t.updatedAt)+(t.lastModifiedBy&&!isDM?' par '+escHtml(t.lastModifiedBy):'') : ''}
       </div>
     </div>
     <div class="chat-reactions">
@@ -380,16 +648,28 @@ window.sendTeamMessage = async () => {
   const text = input.value.trim();
   if (!text || !currentTeamId) return;
   input.value = '';
-  autoGrowChatInput(input); // remet le champ à sa hauteur d'une ligne
+  autoGrowChatInput(input);
   clearTimeout(typingDebounce);
   deleteDoc(doc(db,'typingStatus',`${currentTeamId}_${currentUser.uid}`)).catch(()=>{});
+
+  // Limite DM : 50 messages max — supprime le plus ancien avant d'envoyer
+  const currentTeam = myTeams.find(t => t.id === currentTeamId);
+  if (currentTeam?.type === 'dm') {
+    const dmMsgs = teamChatCache.filter(m => m.kind === 'message');
+    if (dmMsgs.length >= 50) {
+      const oldest = dmMsgs.reduce((a, b) =>
+        (a.timestamp?.toMillis?.() || 0) < (b.timestamp?.toMillis?.() || 0) ? a : b
+      );
+      await deleteDoc(doc(db, 'teamMessages', oldest.id)).catch(() => {});
+    }
+  }
+
   await addDoc(collection(db,'teamMessages'), {
     teamId: currentTeamId, text,
     uid: currentUser.uid,
     pseudo: settings.hidePseudo ? 'Anonyme' : (userProfile.pseudo||currentUser.displayName||'?'),
     timestamp: serverTimestamp()
   });
-  // On force le scroll en bas puisque c'est notre propre message qu'on vient d'envoyer
   const feed = document.getElementById('team-chat-feed');
   if (feed) requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 };
@@ -407,7 +687,7 @@ window.acceptMember = async (teamId, uid, pseudo, photoURL, groupAvatar) => {
   const team = snap.data();
   await updateDoc(ref2, {
     pending: team.pending.filter(p=>p.uid!==uid),
-    members: [...(team.members||[]), {uid,pseudo,photoURL,groupAvatar:groupAvatar||'ga1'}],
+    members: [...(team.members||[]), {uid,pseudo,photoURL,groupAvatar:groupAvatar||'ga1',joinedAt:Date.now()}],
     memberIds: [...(team.memberIds||[]), uid]
   });
   showToast(` ${pseudo} accepté !`);
@@ -424,6 +704,42 @@ window.rejectMember = async (teamId, uid) => {
   renderTeamMembersInfo({ id: teamId, ...newSnap.data() });
 };
 
+window.blockDMUser = async (otherUid, otherName) => {
+  if (!otherUid) return;
+  if (!confirm(`Bloquer ${otherName} ? Vous ne recevrez plus ses messages ni ses tâches.`)) return;
+  const blockedAt = Date.now();
+  const existing = userProfile.blocked || [];
+  const already = existing.find(b => b.uid === otherUid);
+  if (!already) {
+    const newBlocked = [...existing, { uid: otherUid, blockedAt }];
+    await updateDoc(doc(db, 'users', currentUser.uid), { blocked: newBlocked });
+    userProfile.blocked = newBlocked;
+  }
+  closeModal('team-info-modal');
+  closeTeamDetailModal();
+  showToast(`${otherName} bloqué`);
+};
+
+window.unblockDMUser = async (otherUid, otherName) => {
+  if (!confirm(`Débloquer ${otherName} ?`)) return;
+  const now = Date.now();
+  const existing = userProfile.blocked || [];
+  // On garde l'entrée mais on ajoute unblockedAt — permet de continuer
+  // à filtrer les messages envoyés PENDANT la période de blocage
+  const newBlocked = existing.map(b =>
+    b.uid === otherUid ? { ...b, unblockedAt: now } : b
+  );
+  await updateDoc(doc(db, 'users', currentUser.uid), { blocked: newBlocked });
+  userProfile.blocked = newBlocked;
+  closeModal('team-info-modal');
+  showToast(`${otherName} débloqué`);
+  // Réactiver l'input
+  const chatInput = document.getElementById('team-chat-input');
+  const sendBtn = document.getElementById('team-chat-send-btn');
+  if (chatInput) { chatInput.disabled = false; chatInput.placeholder = 'Écrire un message…'; }
+  if (sendBtn) sendBtn.disabled = false;
+};
+
 window.leaveTeam = async () => {
   if (!currentTeamId) return;
   const ref2 = doc(db,'teams',currentTeamId);
@@ -435,7 +751,7 @@ window.leaveTeam = async () => {
   });
   closeModal('team-info-modal');
   closeTeamDetailModal();
-  showToast('👋 Équipe quittée');
+  showToast('Équipe quittée');
 };
 
 window.openTeamTaskModal = () => {
